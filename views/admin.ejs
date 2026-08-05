@@ -1,0 +1,88 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Admin — Futuro Training Tracker</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <%- include("partials/header", { user }) %>
+  <main class="container">
+    <h1>Admin</h1>
+
+    <section class="card">
+      <h2>Employment Hero sync</h2>
+      <p class="muted">Pulls the current staff/centre roster. Doesn't touch pay data.</p>
+      <% if (syncResult) { %>
+        <% if (syncResult.ok) { %>
+          <p class="success">Synced <%= syncResult.staffSynced %> staff record(s).</p>
+        <% } else { %>
+          <p class="error">Sync failed: <%= syncResult.error %></p>
+        <% } %>
+      <% } %>
+      <form method="POST" action="/admin/sync"><button type="submit">Run sync now</button></form>
+      <table>
+        <thead><tr><th>Run at</th><th>Status</th><th>Staff synced</th><th>Detail</th></tr></thead>
+        <tbody>
+          <% syncLog.forEach(function(l) { %>
+            <tr>
+              <td><%= l.run_at %></td>
+              <td><%= l.status %></td>
+              <td><%= l.staff_synced %></td>
+              <td><%= l.detail %></td>
+            </tr>
+          <% }) %>
+          <% if (syncLog.length === 0) { %>
+            <tr><td colspan="4" class="muted">No syncs run yet.</td></tr>
+          <% } %>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card">
+      <h2>Users</h2>
+      <table>
+        <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Centre</th><th>Active</th><th></th></tr></thead>
+        <tbody>
+          <% users.forEach(function(u) { %>
+            <tr>
+              <td><%= u.full_name %></td>
+              <td><%= u.email %></td>
+              <td><%= u.role %></td>
+              <td><%= u.location_name || "—" %></td>
+              <td><%= u.active ? "Yes" : "No" %></td>
+              <td>
+                <form method="POST" action="/admin/users/<%= u.id %>/toggle" class="inline">
+                  <button type="submit" class="link-btn"><%= u.active ? "Deactivate" : "Reactivate" %></button>
+                </form>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+
+      <details>
+        <summary>+ New login</summary>
+        <form method="POST" action="/admin/users" class="form-grid">
+          <label>Full name<input type="text" name="full_name" required></label>
+          <label>Email<input type="email" name="email" required></label>
+          <label>Role
+            <select name="role" required>
+              <option value="centre_manager">Centre Manager</option>
+              <option value="admin">Admin</option>
+            </select>
+          </label>
+          <label>Centre (Centre Manager only)
+            <select name="location_id">
+              <option value="">—</option>
+              <% locations.forEach(function(l) { %><option value="<%= l.id %>"><%= l.name %></option><% }) %>
+            </select>
+          </label>
+          <label>Password<input type="text" name="password" placeholder="Demo1234! if left blank"></label>
+          <button type="submit" class="full">Create login</button>
+        </form>
+      </details>
+    </section>
+  </main>
+</body>
+</html>

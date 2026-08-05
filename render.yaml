@@ -1,0 +1,37 @@
+# Render Blueprint — lets Render create the whole service from this one file
+# (New -> Blueprint -> point at this repo). See README.md "Deploying to Render".
+#
+# Secrets (EH_API_KEY, EH_BUSINESS_ID, ADMIN_DEFAULT_PASSWORD) are deliberately left
+# with `sync: false` so Render prompts for them in the dashboard instead of reading
+# them from this committed file — never put real secret values in render.yaml.
+services:
+  - type: web
+    name: futuro-training-tracker
+    runtime: node
+    plan: starter
+    buildCommand: npm install
+    startCommand: npm start
+    autoDeploy: true
+    disk:
+      name: training-tracker-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: 18.20.4
+      - key: PORT
+        value: 3001
+      - key: DB_PATH
+        value: /data/training.db
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: EH_API_KEY
+        sync: false
+      - key: EH_BASE_URL
+        value: https://api.yourpayroll.com.au
+      - key: EH_BUSINESS_ID
+        sync: false
+      - key: ADMIN_EMAIL
+        value: christo.kruger@futuro.nsw.edu.au
+      - key: ADMIN_DEFAULT_PASSWORD
+        sync: false

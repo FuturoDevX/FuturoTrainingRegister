@@ -1,0 +1,15 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Error — Futuro Training Tracker</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <%- include("partials/header", { user: typeof user !== "undefined" ? user : null }) %>
+  <main class="container">
+    <p class="error"><%= message %></p>
+    <a href="/training">Back to sessions</a>
+  </main>
+</body>
+</html>

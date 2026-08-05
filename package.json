@@ -1,0 +1,22 @@
+{
+  "name": "futuro-training-tracker",
+  "version": "0.1.0",
+  "description": "Futuro Early Learning - Training Tracker (standalone light app for Centre Managers)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "seed": "node db/init.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.3.0",
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.5",
+    "ejs": "^3.1.10",
+    "express": "^4.19.2",
+    "express-session": "^1.18.0",
+    "node-cron": "^3.0.3"
+  }
+}

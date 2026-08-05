@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Attendance — <%= session.title %></title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <%- include("partials/header", { user }) %>
+  <main class="container">
+    <p><a href="/training">&larr; Back to sessions</a></p>
+    <h1><%= session.title %></h1>
+    <p class="muted"><%= session.session_date %> &middot; <%= session.location_name %> &middot; <%= session.hours %> hours<% if (session.provider) { %> &middot; <%= session.provider %><% } %></p>
+
+    <form method="POST" action="/training/<%= session.id %>/attendance">
+      <table>
+        <thead><tr><th>Attended</th><th>Name</th><th>Position</th></tr></thead>
+        <tbody>
+          <% staff.forEach(function(s) { %>
+            <tr>
+              <td><input type="checkbox" name="attended" value="<%= s.id %>" <%= attendedSet.has(s.id) ? "checked" : "" %>></td>
+              <td><%= s.full_name %></td>
+              <td><%= s.position_title || "—" %></td>
+            </tr>
+          <% }) %>
+          <% if (staff.length === 0) { %>
+            <tr><td colspan="3" class="muted">No active staff at this centre.</td></tr>
+          <% } %>
+        </tbody>
+      </table>
+      <button type="submit">Save attendance</button>
+    </form>
+  </main>
+</body>
+</html>

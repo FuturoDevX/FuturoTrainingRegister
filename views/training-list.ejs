@@ -1,0 +1,56 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Training Sessions — Futuro Training Tracker</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <%- include("partials/header", { user }) %>
+  <main class="container">
+    <h1>Training Sessions</h1>
+    <p class="muted"><%= scoped ? "Showing your centre only." : "Showing all centres." %></p>
+
+    <details class="card" <%= sessions.length === 0 ? "open" : "" %>>
+      <summary>+ New training session</summary>
+      <form method="POST" action="/training" class="form-grid">
+        <label>Title<input type="text" name="title" required placeholder="e.g. First Aid & CPR Refresher"></label>
+        <label>Date<input type="date" name="session_date" required></label>
+        <label>Provider<input type="text" name="provider" placeholder="e.g. Australian Red Cross"></label>
+        <label>Hours<input type="number" name="hours" step="0.25" min="0" required></label>
+        <% if (!scoped) { %>
+          <label>Centre
+            <select name="location_id" required>
+              <option value="">Select centre</option>
+              <% locations.forEach(function(l) { %><option value="<%= l.id %>"><%= l.name %></option><% }) %>
+            </select>
+          </label>
+        <% } %>
+        <label class="full">Notes<textarea name="notes" rows="2"></textarea></label>
+        <button type="submit" class="full">Create session</button>
+      </form>
+    </details>
+
+    <table>
+      <thead>
+        <tr><th>Date</th><th>Title</th><th>Centre</th><th>Provider</th><th>Hours</th><th></th></tr>
+      </thead>
+      <tbody>
+        <% sessions.forEach(function(s) { %>
+          <tr>
+            <td><%= s.session_date %></td>
+            <td><%= s.title %></td>
+            <td><%= s.location_name || "—" %></td>
+            <td><%= s.provider || "—" %></td>
+            <td><%= s.hours %></td>
+            <td><a href="/training/<%= s.id %>/attendance">Mark attendance</a></td>
+          </tr>
+        <% }) %>
+        <% if (sessions.length === 0) { %>
+          <tr><td colspan="6" class="muted">No training sessions yet.</td></tr>
+        <% } %>
+      </tbody>
+    </table>
+  </main>
+</body>
+</html>

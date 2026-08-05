@@ -1,0 +1,12 @@
+<header class="topbar">
+  <div class="brand"><a href="/training">Futuro Training Tracker</a></div>
+  <% if (typeof user !== "undefined" && user) { %>
+    <nav>
+      <a href="/training">Sessions</a>
+      <a href="/report">Reports</a>
+      <% if (user.role === "admin") { %><a href="/admin">Admin</a><% } %>
+      <span class="who"><%= user.full_name %></span>
+      <form action="/logout" method="POST" class="inline"><button type="submit" class="link-btn">Log out</button></form>
+    </nav>
+  <% } %>
+</header>
