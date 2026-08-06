@@ -47,6 +47,9 @@ async function fetchEmployeeDetails() {
     throw new Error("Missing EH_API_KEY / EH_BASE_URL / EH_BUSINESS_ID in .env — see .env.example");
   }
 
+  // includeInactive stays true deliberately — this is how a termination gets picked up
+  // at all (see runSync/upsertStaff below for how that turns into status='archived' and
+  // drops the person out of every active-staff screen).
   const params = new URLSearchParams();
   params.append("includeActive", "true");
   params.append("includeInactive", "true");
@@ -88,20 +91,30 @@ function upsertStaff(record) {
     position_title: record.JobTitle || null,
     status,
   });
+
+  return status;
 }
 
 async function runSync() {
-  let staffSynced = 0;
+  // Employment Hero's report is fetched with includeInactive=true so a termination is
+  // still picked up and the person's status flips to 'archived' (every staff query in
+  // routes/training.js and routes/report.js already filters to status='active', so an
+  // archived person immediately stops appearing in session/attendance/report screens).
+  // What's counted and shown here is active staff only — the raw upsert count (which
+  // includes archived/terminated staff still being kept in sync) was misleadingly large.
+  let activeSynced = 0;
+  let archivedSynced = 0;
   try {
     const records = await fetchEmployeeDetails();
     for (const record of records) {
       if (!record.EmployeeId) continue;
-      upsertStaff(record);
-      staffSynced++;
+      const status = upsertStaff(record);
+      if (status === "active") activeSynced++; else archivedSynced++;
     }
+    const detail = `Synced ${activeSynced} active staff record(s)` + (archivedSynced ? ` (${archivedSynced} terminated/archived, excluded from every screen).` : ".");
     db.prepare("INSERT INTO sync_log (source, status, staff_synced, detail) VALUES ('employment_hero', 'success', ?, ?)")
-      .run(staffSynced, `Synced ${staffSynced} staff record(s).`);
-    return { ok: true, staffSynced };
+      .run(activeSynced, detail);
+    return { ok: true, staffSynced: activeSynced, archivedSynced };
   } catch (err) {
     db.prepare("INSERT INTO sync_log (source, status, staff_synced, detail) VALUES ('employment_hero', 'error', 0, ?)")
       .run(err.message);
