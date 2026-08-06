@@ -75,10 +75,12 @@ router.get("/report/person/:id", requireLogin, (req, res) => {
     return res.status(403).render("error", { message: "You can only view staff from your own centre." });
   }
 
+  // Only attended sessions — a session someone was scheduled for but didn't attend
+  // isn't training they received, so it doesn't belong in their report.
   const sessions = db.prepare(`
-    SELECT t.*, a.attended FROM training_attendance a
+    SELECT t.* FROM training_attendance a
     JOIN training_sessions t ON t.id = a.session_id
-    WHERE a.staff_id = ?
+    WHERE a.staff_id = ? AND a.attended = 1
     ORDER BY t.session_date DESC
   `).all(staffMember.id);
 
@@ -94,7 +96,7 @@ router.get("/report/person/:id", requireLogin, (req, res) => {
     for (const s of sessions) s.nqsCodes = bySession.get(s.id) || [];
   }
 
-  const totalHours = sessions.filter((s) => s.attended).reduce((sum, s) => sum + s.hours, 0);
+  const totalHours = sessions.reduce((sum, s) => sum + s.hours, 0);
 
   res.render("report-person", { staffMember, sessions, totalHours, nqs });
 });

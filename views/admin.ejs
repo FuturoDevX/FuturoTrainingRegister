@@ -21,45 +21,55 @@
         <% } %>
       <% } %>
       <form method="POST" action="/admin/sync"><button type="submit">Run sync now</button></form>
-      <table>
-        <thead><tr><th>Run at</th><th>Status</th><th>Staff synced</th><th>Detail</th></tr></thead>
-        <tbody>
-          <% syncLog.forEach(function(l) { %>
-            <tr>
-              <td><%= l.run_at %></td>
-              <td><%= l.status %></td>
-              <td><%= l.staff_synced %></td>
-              <td><%= l.detail %></td>
-            </tr>
-          <% }) %>
-          <% if (syncLog.length === 0) { %>
-            <tr><td colspan="4" class="muted">No syncs run yet.</td></tr>
-          <% } %>
-        </tbody>
-      </table>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Run at</th><th>Status</th><th>Staff synced</th><th>Detail</th></tr></thead>
+          <tbody>
+            <% syncLog.forEach(function(l) { %>
+              <tr>
+                <td><%= l.run_at %></td>
+                <td><%= l.status %></td>
+                <td><%= l.staff_synced %></td>
+                <td><%= l.detail %></td>
+              </tr>
+            <% }) %>
+            <% if (syncLog.length === 0) { %>
+              <tr><td colspan="4" class="muted">No syncs run yet.</td></tr>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
     </section>
 
     <section class="card">
       <h2>Users</h2>
-      <table>
-        <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Centre</th><th>Active</th><th></th></tr></thead>
-        <tbody>
-          <% users.forEach(function(u) { %>
-            <tr>
-              <td><%= u.full_name %></td>
-              <td><%= u.email %></td>
-              <td><%= u.role %></td>
-              <td><%= u.location_name || "—" %></td>
-              <td><%= u.active ? "Yes" : "No" %></td>
-              <td>
-                <form method="POST" action="/admin/users/<%= u.id %>/toggle" class="inline">
-                  <button type="submit" class="link-btn"><%= u.active ? "Deactivate" : "Reactivate" %></button>
-                </form>
-              </td>
-            </tr>
-          <% }) %>
-        </tbody>
-      </table>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Centre</th><th>Active</th><th>Reset password</th><th></th></tr></thead>
+          <tbody>
+            <% users.forEach(function(u) { %>
+              <tr>
+                <td><%= u.full_name %></td>
+                <td><%= u.email %></td>
+                <td><%= u.role %></td>
+                <td><%= u.location_name || "—" %></td>
+                <td><%= u.active ? "Yes" : "No" %></td>
+                <td>
+                  <form method="POST" action="/admin/users/<%= u.id %>/password" class="inline password-reset-form">
+                    <input type="text" name="password" placeholder="New password" minlength="8" required>
+                    <button type="submit" class="link-btn">Set</button>
+                  </form>
+                </td>
+                <td>
+                  <form method="POST" action="/admin/users/<%= u.id %>/toggle" class="inline">
+                    <button type="submit" class="link-btn"><%= u.active ? "Deactivate" : "Reactivate" %></button>
+                  </form>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
 
       <details>
         <summary>+ New login</summary>

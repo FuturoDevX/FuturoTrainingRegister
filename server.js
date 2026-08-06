@@ -7,6 +7,7 @@ const path = require("path");
 const db = require("./db/db"); // ensures data/ dir exists before anything else touches it
 require("./db/migrate"); // idempotent — patches databases created before a schema change
 const { runSync } = require("./services/employmentHero");
+const { flashMiddleware } = require("./middleware/flash");
 
 const authRoutes = require("./routes/auth");
 const trainingRoutes = require("./routes/training");
@@ -28,6 +29,8 @@ app.use(
     cookie: { maxAge: 8 * 60 * 60 * 1000 }, // 8 hours
   })
 );
+
+app.use(flashMiddleware);
 
 app.get("/", (req, res) => res.redirect(req.session.user ? "/training" : "/login"));
 

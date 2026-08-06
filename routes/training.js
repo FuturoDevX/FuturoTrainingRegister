@@ -1,6 +1,7 @@
 const express = require("express");
 const db = require("../db/db");
 const { requireLogin, scopedLocationId } = require("../middleware/auth");
+const { setFlash } = require("../middleware/flash");
 const nqs = require("../services/nqs");
 
 const router = express.Router();
@@ -61,6 +62,7 @@ router.post("/training", requireLogin, (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `).run(locationId, req.body.title, req.body.session_date, req.body.provider || null, parseFloat(req.body.hours), req.body.notes || null, req.session.user.id, allCentres);
   saveNqsLinks(result.lastInsertRowid, req.body.nqs_elements);
+  setFlash(req, "success", `"${req.body.title}" created.`);
   res.redirect("/training");
 });
 
@@ -136,10 +138,18 @@ router.post("/training/:id/attendance", requireLogin, (req, res) => {
     INSERT INTO training_attendance (session_id, staff_id, attended) VALUES (?, ?, ?)
     ON CONFLICT(session_id, staff_id) DO UPDATE SET attended = excluded.attended
   `);
+  let markedCount = 0;
   const txn = db.transaction(() => {
-    for (const s of staff) upsert.run(session.id, s.id, attendedIds.has(s.id) ? 1 : 0);
+    for (const s of staff) {
+      const attended = attendedIds.has(s.id);
+      if (attended) markedCount++;
+      upsert.run(session.id, s.id, attended ? 1 : 0);
+    }
   });
   txn();
+
+  const viewLocation = db.prepare("SELECT name FROM locations WHERE id = ?").get(viewLocationId);
+  setFlash(req, "success", `Attendance saved for ${viewLocation ? viewLocation.name : "this centre"} (${markedCount} of ${staff.length} marked attended).`);
 
   if (session.all_centres && !scoped) {
     return res.redirect(`/training/${session.id}/attendance?centre=${viewLocationId}`);

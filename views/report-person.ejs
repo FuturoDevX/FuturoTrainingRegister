@@ -16,27 +16,28 @@
     <p class="muted"><%= staffMember.position_title || "—" %> &middot; <%= staffMember.location_name %></p>
     <p><strong><%= totalHours %> hours</strong> of training attended (all-time)</p>
 
-    <table>
-      <thead><tr><th>Date</th><th>Session</th><th>Provider</th><th>Hours</th><th>Attended</th><th>NQS</th></tr></thead>
-      <tbody>
-        <% sessions.forEach(function(s) { %>
-          <tr>
-            <td><%= s.session_date %></td>
-            <td><%= s.title %></td>
-            <td><%= s.provider || "—" %></td>
-            <td><%= s.hours %></td>
-            <td><%= s.attended ? "Yes" : "No" %></td>
-            <td>
-              <% if (!s.nqsCodes || s.nqsCodes.length === 0) { %>—<% } %>
-              <% (s.nqsCodes || []).forEach(function(code) { %><span class="badge nqs-tag" title="<%= nqs.elementLabel(code) %>"><%= code %></span><% }) %>
-            </td>
-          </tr>
-        <% }) %>
-        <% if (sessions.length === 0) { %>
-          <tr><td colspan="6" class="muted">No training sessions recorded yet.</td></tr>
-        <% } %>
-      </tbody>
-    </table>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Date</th><th>Session</th><th>Provider</th><th>Hours</th><th>NQS</th></tr></thead>
+        <tbody>
+          <% sessions.forEach(function(s) { %>
+            <tr>
+              <td><%= s.session_date %></td>
+              <td><%= s.title %></td>
+              <td><%= s.provider || "—" %></td>
+              <td><%= s.hours %></td>
+              <td>
+                <% if (!s.nqsCodes || s.nqsCodes.length === 0) { %>—<% } %>
+                <% (s.nqsCodes || []).forEach(function(code) { %><span class="badge nqs-tag" title="<%= nqs.elementLabel(code) %>"><%= code %></span><% }) %>
+              </td>
+            </tr>
+          <% }) %>
+          <% if (sessions.length === 0) { %>
+            <tr><td colspan="5" class="muted">No training attended yet.</td></tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
   </main>
 </body>
 </html>
