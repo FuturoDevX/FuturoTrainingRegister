@@ -1,6 +1,7 @@
 const express = require("express");
 const db = require("../db/db");
 const { requireLogin, scopedLocationId } = require("../middleware/auth");
+const nqs = require("../services/nqs");
 
 const router = express.Router();
 
@@ -81,9 +82,21 @@ router.get("/report/person/:id", requireLogin, (req, res) => {
     ORDER BY t.session_date DESC
   `).all(staffMember.id);
 
+  if (sessions.length > 0) {
+    const ids = sessions.map((s) => s.id);
+    const placeholders = ids.map(() => "?").join(",");
+    const links = db.prepare(`SELECT session_id, element_code FROM training_session_nqs WHERE session_id IN (${placeholders})`).all(...ids);
+    const bySession = new Map();
+    for (const link of links) {
+      if (!bySession.has(link.session_id)) bySession.set(link.session_id, []);
+      bySession.get(link.session_id).push(link.element_code);
+    }
+    for (const s of sessions) s.nqsCodes = bySession.get(s.id) || [];
+  }
+
   const totalHours = sessions.filter((s) => s.attended).reduce((sum, s) => sum + s.hours, 0);
 
-  res.render("report-person", { staffMember, sessions, totalHours });
+  res.render("report-person", { staffMember, sessions, totalHours, nqs });
 });
 
 module.exports = router;

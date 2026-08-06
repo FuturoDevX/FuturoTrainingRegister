@@ -17,6 +17,12 @@
     <% if (session.all_centres) { %>
       <p class="muted">Open to all centres — each centre's manager marks their own staff's attendance here, whichever centre it's hosted at.</p>
     <% } %>
+    <% if (session.nqs.length > 0) { %>
+      <p class="muted">
+        NQS:
+        <% session.nqs.forEach(function(el) { %><span class="badge nqs-tag" title="<%= el.name %>"><%= el.code %></span><% }) %>
+      </p>
+    <% } %>
 
     <% if (centreSummary) { %>
       <table class="summary-table">

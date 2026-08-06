@@ -110,8 +110,13 @@ button:hover, .button:hover { background: var(--brand-dark); }
   margin-left: 0.5rem;
 }
 
-.checkbox-row { flex-direction: row; align-items: center; gap: 0.5rem; font-weight: normal; }
-.checkbox-row input { width: auto; }
+/* Beats .form-grid label's column layout (specificity) — this needs to win to lay the
+   checkbox and its text out side by side instead of stacked/centered. */
+.form-grid label.checkbox-row { flex-direction: row; align-items: center; gap: 0.5rem; font-weight: normal; text-align: left; }
+.checkbox-row input { width: auto; flex: none; }
+
+.nqs-tag { margin-left: 0; margin-right: 0.35rem; cursor: help; }
+.hint { display: block; font-weight: normal; font-size: 0.8rem; color: var(--muted); margin-top: 0.3rem; }
 
 .summary-table { margin-bottom: 1.5rem; }
 .summary-table .current-row { background: #eef3f1; font-weight: 600; }

@@ -59,6 +59,16 @@ CREATE TABLE IF NOT EXISTS training_attendance (
   UNIQUE(session_id, staff_id)
 );
 
+-- Which NQS (National Quality Standard) elements a session is linked to, if any — see
+-- services/nqs.js for the reference list element_code validates against. Optional,
+-- many-to-many (a session can cover several elements).
+CREATE TABLE IF NOT EXISTS training_session_nqs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  session_id INTEGER NOT NULL REFERENCES training_sessions(id),
+  element_code TEXT NOT NULL,         -- e.g. '1.1.1'
+  UNIQUE(session_id, element_code)
+);
+
 -- Records each Employment Hero sync run, so Admin can see when it last ran and whether it worked.
 CREATE TABLE IF NOT EXISTS sync_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

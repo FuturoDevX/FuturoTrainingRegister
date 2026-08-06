@@ -1,8 +1,33 @@
 const express = require("express");
 const db = require("../db/db");
 const { requireLogin, scopedLocationId } = require("../middleware/auth");
+const nqs = require("../services/nqs");
 
 const router = express.Router();
+
+// Attaches an `nqs` array (e.g. [{code:'1.1.1', name:'...'}]) to each session, in one
+// query rather than N+1 — fine at this app's scale (a handful of sessions per centre).
+function attachNqsLinks(sessions) {
+  if (sessions.length === 0) return sessions;
+  const ids = sessions.map((s) => s.id);
+  const placeholders = ids.map(() => "?").join(",");
+  const links = db.prepare(`SELECT session_id, element_code FROM training_session_nqs WHERE session_id IN (${placeholders})`).all(...ids);
+  const bySession = new Map();
+  for (const link of links) {
+    if (!bySession.has(link.session_id)) bySession.set(link.session_id, []);
+    bySession.get(link.session_id).push({ code: link.element_code, name: nqs.ELEMENTS_BY_CODE.get(link.element_code)?.name || link.element_code });
+  }
+  for (const s of sessions) s.nqs = bySession.get(s.id) || [];
+  return sessions;
+}
+
+function saveNqsLinks(sessionId, submitted) {
+  const codes = [...new Set([].concat(submitted || []))].filter(nqs.isValidElementCode);
+  if (codes.length === 0) return;
+  const insert = db.prepare("INSERT OR IGNORE INTO training_session_nqs (session_id, element_code) VALUES (?, ?)");
+  const txn = db.transaction(() => { for (const code of codes) insert.run(sessionId, code); });
+  txn();
+}
 
 router.get("/training", requireLogin, (req, res) => {
   const locationId = scopedLocationId(req);
@@ -17,9 +42,10 @@ router.get("/training", requireLogin, (req, res) => {
         ORDER BY t.session_date DESC
       `).all(locationId)
     : db.prepare("SELECT t.*, l.name AS location_name FROM training_sessions t LEFT JOIN locations l ON l.id = t.location_id ORDER BY t.session_date DESC").all();
+  attachNqsLinks(sessions);
 
   const locations = db.prepare("SELECT * FROM locations ORDER BY name").all();
-  res.render("training-list", { sessions, scoped: !!locationId, locations });
+  res.render("training-list", { sessions, scoped: !!locationId, locations, qualityAreas: nqs.QUALITY_AREAS });
 });
 
 router.post("/training", requireLogin, (req, res) => {
@@ -30,10 +56,11 @@ router.post("/training", requireLogin, (req, res) => {
     return res.status(400).render("error", { message: "A centre is required to create a training session." });
   }
   const allCentres = req.body.all_centres ? 1 : 0;
-  db.prepare(`
+  const result = db.prepare(`
     INSERT INTO training_sessions (location_id, title, session_date, provider, hours, notes, created_by, all_centres)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `).run(locationId, req.body.title, req.body.session_date, req.body.provider || null, parseFloat(req.body.hours), req.body.notes || null, req.session.user.id, allCentres);
+  saveNqsLinks(result.lastInsertRowid, req.body.nqs_elements);
   res.redirect("/training");
 });
 
@@ -85,6 +112,7 @@ router.get("/training/:id/attendance", requireLogin, (req, res) => {
   }
 
   const locations = db.prepare("SELECT * FROM locations WHERE name != 'Other/HQ' ORDER BY name").all();
+  attachNqsLinks([session]);
 
   res.render("training-attendance", { session, staff, attendedSet, viewLocation, locations, centreSummary, isAdmin: !scoped });
 });
