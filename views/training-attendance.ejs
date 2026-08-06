@@ -10,9 +10,33 @@
   <main class="container">
     <p><a href="/training">&larr; Back to sessions</a></p>
     <h1><%= session.title %></h1>
-    <p class="muted"><%= session.session_date %> &middot; <%= session.location_name %> &middot; <%= session.hours %> hours<% if (session.provider) { %> &middot; <%= session.provider %><% } %></p>
+    <p class="muted">
+      <%= session.session_date %> &middot; Hosted at <%= session.location_name %> &middot; <%= session.hours %> hours<% if (session.provider) { %> &middot; <%= session.provider %><% } %>
+      <% if (session.all_centres) { %><span class="badge">All centres</span><% } %>
+    </p>
+    <% if (session.all_centres) { %>
+      <p class="muted">Open to all centres — each centre's manager marks their own staff's attendance here, whichever centre it's hosted at.</p>
+    <% } %>
 
+    <% if (centreSummary) { %>
+      <table class="summary-table">
+        <thead><tr><th>Centre</th><th>Active staff</th><th>Marked attended</th><th></th></tr></thead>
+        <tbody>
+          <% centreSummary.forEach(function(c) { %>
+            <tr class="<%= c.id === viewLocation.id ? 'current-row' : '' %>">
+              <td><%= c.name %></td>
+              <td><%= c.staff_count %></td>
+              <td><%= c.attended_count %></td>
+              <td><a href="/training/<%= session.id %>/attendance?centre=<%= c.id %>">View / mark</a></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    <% } %>
+
+    <h2>Marking for: <%= viewLocation.name %></h2>
     <form method="POST" action="/training/<%= session.id %>/attendance">
+      <% if (isAdmin) { %><input type="hidden" name="location_id" value="<%= viewLocation.id %>"><% } %>
       <table>
         <thead><tr><th>Attended</th><th>Name</th><th>Position</th></tr></thead>
         <tbody>
@@ -24,7 +48,7 @@
             </tr>
           <% }) %>
           <% if (staff.length === 0) { %>
-            <tr><td colspan="3" class="muted">No active staff at this centre.</td></tr>
+            <tr><td colspan="3" class="muted">No active staff at <%= viewLocation.name %>.</td></tr>
           <% } %>
         </tbody>
       </table>

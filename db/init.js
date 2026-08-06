@@ -12,6 +12,7 @@ const db = require("./db");
 
 const schema = fs.readFileSync(path.join(__dirname, "schema.sql"), "utf8");
 db.exec(schema);
+require("./migrate");
 
 const locations = ["GWH", "Bardia", "Austral", "LHR", "Other/HQ"];
 const insertLocation = db.prepare("INSERT OR IGNORE INTO locations (name) VALUES (?)");

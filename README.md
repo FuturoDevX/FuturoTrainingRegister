@@ -11,6 +11,13 @@ attended, and pull a report.
   own centre's staff and sessions, enforced server-side.
 - **Training sessions**: a Centre Manager creates a session (title, date, provider,
   hours, optional notes) and marks attendance against their centre's active staff.
+- **Open to all centres**: a session can be marked "open to all centres" at creation, so
+  educators from any centre can attend a session hosted elsewhere. Each centre's own
+  manager still only ever marks their own staff's attendance — never another centre's —
+  regardless of which centre is hosting. Admin gets a per-centre summary on the
+  attendance page (staff count + how many marked attended) with a link to switch between
+  centres. Reports are unaffected either way, since hours/attendance are tracked per
+  person, not per hosting centre.
 - **Reports**:
   - By centre — Admin picks a centre (a Centre Manager goes straight to their own);
     see every active staff member with sessions-attended count and total hours, plus

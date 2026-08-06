@@ -97,6 +97,25 @@ button:hover, .button:hover { background: var(--brand-dark); }
 .link-list a { color: var(--brand); font-weight: 600; text-decoration: none; }
 .link-list a:hover { text-decoration: underline; }
 
+.badge {
+  display: inline-block;
+  background: #e4f0ec;
+  color: var(--brand-dark);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  margin-left: 0.5rem;
+}
+
+.checkbox-row { flex-direction: row; align-items: center; gap: 0.5rem; font-weight: normal; }
+.checkbox-row input { width: auto; }
+
+.summary-table { margin-bottom: 1.5rem; }
+.summary-table .current-row { background: #eef3f1; font-weight: 600; }
+
 form.inline { display: inline; }
 
 details summary { cursor: pointer; font-weight: 600; color: var(--brand-dark); }

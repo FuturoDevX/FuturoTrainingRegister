@@ -37,12 +37,16 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS training_sessions (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  location_id INTEGER REFERENCES locations(id),
+  location_id INTEGER REFERENCES locations(id),  -- hosting centre
   title TEXT NOT NULL,
   session_date TEXT NOT NULL,         -- ISO date
   provider TEXT,
   hours REAL NOT NULL,
   notes TEXT,
+  -- When set, educators from any centre may attend, not just the hosting centre's staff.
+  -- Attendance is still marked per-centre: each centre manager only ever marks their own
+  -- staff's attendance, even for a session hosted elsewhere (see routes/training.js).
+  all_centres INTEGER NOT NULL DEFAULT 0,
   created_by INTEGER REFERENCES users(id),
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );

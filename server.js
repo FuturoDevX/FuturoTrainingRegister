@@ -5,6 +5,7 @@ const cron = require("node-cron");
 const path = require("path");
 
 const db = require("./db/db"); // ensures data/ dir exists before anything else touches it
+require("./db/migrate"); // idempotent — patches databases created before a schema change
 const { runSync } = require("./services/employmentHero");
 
 const authRoutes = require("./routes/auth");
