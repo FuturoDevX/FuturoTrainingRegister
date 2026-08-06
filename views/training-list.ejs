@@ -30,21 +30,26 @@
           <input type="checkbox" name="all_centres" value="1">
           Open to all centres
         </label>
-        <label class="full">
-          NQS elements (optional)
-          <select name="nqs_elements" multiple size="8">
-            <% qualityAreas.forEach(function(area) { %>
-              <optgroup label="QA<%= area.number %> — <%= area.name %>">
-                <% area.standards.forEach(function(standard) { %>
-                  <% standard.elements.forEach(function(el) { %>
-                    <option value="<%= el.code %>"><%= el.code %> — <%= el.name %></option>
+        <div class="full">
+          <details class="nqs-picker">
+            <summary>NQS elements (optional) — click to choose</summary>
+            <div class="nqs-checklist">
+              <% qualityAreas.forEach(function(area) { %>
+                <div class="nqs-group">
+                  <div class="nqs-group-title">QA<%= area.number %> — <%= area.name %></div>
+                  <% area.standards.forEach(function(standard) { %>
+                    <% standard.elements.forEach(function(el) { %>
+                      <label class="nqs-item">
+                        <input type="checkbox" name="nqs_elements" value="<%= el.code %>">
+                        <%= el.code %> — <%= el.name %>
+                      </label>
+                    <% }) %>
                   <% }) %>
-                <% }) %>
-              </optgroup>
-            <% }) %>
-          </select>
-          <span class="hint">Hold Ctrl (Windows) or Cmd (Mac) and click to select more than one. Leave blank if not applicable.</span>
-        </label>
+                </div>
+              <% }) %>
+            </div>
+          </details>
+        </div>
         <label class="full">Notes<textarea name="notes" rows="2"></textarea></label>
         <button type="submit" class="full">Create session</button>
       </form>

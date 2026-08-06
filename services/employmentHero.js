@@ -10,8 +10,11 @@
 //   - GET {base_url}/api/v2/business/{business_id}/report/employeedetails
 //   - The first record in the response is a fake "header echo" row — skip it
 //
-// Not run against the live API from this session (no network access to Employment Hero
-// here) — test against a real EH sandbox/business before relying on it in production.
+// Verified against the live API: `PrimaryLocation` (the report column used here) and
+// `primaryLocation` on the full employee record both echo EH's real Location hierarchy
+// (GET /business/{id}/location — Futuro Early Learning > Futuro GWH > GWH Room 1, etc.),
+// not a payroll cost centre — there is no separate cost-centre field anywhere on the
+// employee record. Confirmed 2026-08-07.
 
 const db = require("../db/db");
 
@@ -20,6 +23,8 @@ const LOCATION_MAP = [
   { match: /austral/i, name: "Austral" },
   { match: /bardia/i, name: "Bardia" },
   { match: /heath rd/i, name: "LHR" },
+  { match: /oran park/i, name: "Oran Park" },
+  { match: /cobbitty/i, name: "Cobbitty" },
 ];
 
 function mapLocation(primaryLocation) {

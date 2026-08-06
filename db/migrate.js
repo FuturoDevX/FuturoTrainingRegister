@@ -16,3 +16,10 @@ db.exec(`
     UNIQUE(session_id, element_code)
   )
 `);
+
+// Oran Park and Cobbitty turned up as real centres in Employment Hero's Location
+// hierarchy (not present when this app was first seeded) — added to LOCATION_MAP in
+// services/employmentHero.js. Insert them here too so a database created before that
+// fix picks them up without a full reseed.
+const insertLocation = db.prepare("INSERT OR IGNORE INTO locations (name) VALUES (?)");
+for (const loc of ["Oran Park", "Cobbitty"]) insertLocation.run(loc);

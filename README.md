@@ -26,7 +26,12 @@ attended, and pull a report.
     with a print button for a clean printable report.
 - **Employment Hero sync**: keeps the staff/centre roster current. Unlike PMS-App, this
   does **not** exclude casual staff — training/compliance requirements generally apply
-  to everyone at a centre, not just permanent staff. No pay data is touched.
+  to everyone at a centre, not just permanent staff. No pay data is touched. Centre
+  assignment uses EH's real **Location** hierarchy (`primaryLocation` on the employee
+  record, sourced from `GET /business/{id}/location`) — verified live that there is no
+  separate cost-centre field on the employee record, so there's no ambiguity here.
+  Centres: GWH, Bardia, Austral, LHR, Oran Park, Cobbitty, plus an Other/HQ catch-all for
+  anyone not at a physical centre.
 - **Admin**: run the EH sync manually, see the sync log, create/deactivate Centre
   Manager (or Admin) logins.
 
