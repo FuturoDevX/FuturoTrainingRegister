@@ -45,7 +45,7 @@
       <h2>Users</h2>
       <div class="table-scroll">
         <table>
-          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Centre</th><th>Active</th><th>Reset password</th><th></th></tr></thead>
+          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Centre</th><th>Active</th><th class="sticky-col">Actions</th></tr></thead>
           <tbody>
             <% users.forEach(function(u) { %>
               <tr>
@@ -54,15 +54,20 @@
                 <td><%= u.role %></td>
                 <td><%= u.location_name || "—" %></td>
                 <td><%= u.active ? "Yes" : "No" %></td>
-                <td>
-                  <form method="POST" action="/admin/users/<%= u.id %>/password" class="inline password-reset-form">
-                    <input type="text" name="password" placeholder="New password" minlength="8" required>
-                    <button type="submit" class="link-btn">Set</button>
-                  </form>
-                </td>
-                <td>
+                <td class="actions-cell sticky-col">
+                  <details class="inline-reveal">
+                    <summary class="icon-link" title="Set new password" aria-label="Set new password">🔑</summary>
+                    <form method="POST" action="/admin/users/<%= u.id %>/password" class="password-reset-form">
+                      <input type="text" name="password" placeholder="New password" minlength="8" required>
+                      <button type="submit" class="icon-link" title="Save" aria-label="Save">✓</button>
+                    </form>
+                  </details>
                   <form method="POST" action="/admin/users/<%= u.id %>/toggle" class="inline">
-                    <button type="submit" class="link-btn"><%= u.active ? "Deactivate" : "Reactivate" %></button>
+                    <% if (u.active) { %>
+                      <button type="submit" class="icon-link danger" title="Deactivate" aria-label="Deactivate">🚫</button>
+                    <% } else { %>
+                      <button type="submit" class="icon-link" title="Reactivate" aria-label="Reactivate">✅</button>
+                    <% } %>
                   </form>
                 </td>
               </tr>

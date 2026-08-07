@@ -73,13 +73,51 @@ h1 { margin-top: 0; }
 .error { color: var(--error); font-weight: 500; }
 .success { color: var(--success); font-weight: 500; }
 
-.table-scroll { overflow-x: auto; margin-bottom: 1rem; }
+/* border-radius/overflow live on this wrapper, not on <table> itself, for any table
+   inside one — overflow:hidden on an intermediate ancestor (the table) between a sticky
+   cell and its actual scrolling container (this div) breaks position:sticky entirely. */
+.table-scroll { overflow-x: auto; margin-bottom: 1rem; border-radius: 8px; border: 1px solid var(--border); }
+.table-scroll table { border: none; border-radius: 0; overflow: visible; }
 table { width: 100%; border-collapse: collapse; background: white; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-th, td { text-align: left; padding: 0.6rem 0.9rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
+th, td { text-align: left; padding: 0.6rem 0.9rem; border-bottom: 1px solid var(--border); }
 th { background: #eef3f1; font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.02em; }
 tr:last-child td { border-bottom: none; }
 
-.actions-cell { display: flex; align-items: center; gap: 0.9rem; }
+/* Pins the trailing actions column in place while the rest of a wide table scrolls
+   horizontally underneath it, so action links/buttons never scroll out of view and
+   "disappear" — the left shadow signals there's more content hiding behind it. */
+.sticky-col { position: sticky; right: 0; background: white; box-shadow: -6px 0 6px -6px rgba(0, 0, 0, 0.15); }
+th.sticky-col { background: #eef3f1; }
+
+.actions-cell { display: flex; align-items: center; gap: 0.7rem; }
+
+.icon-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  text-decoration: none;
+  color: var(--brand);
+  background: none;
+  border: none;
+  font-size: 1.05rem;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.icon-link:hover { background: #eef3f1; }
+.icon-link.danger { color: var(--error); }
+.icon-link.danger:hover { background: #fbe9e7; }
+
+/* Collapses a rarely-used input (e.g. password reset) behind its trigger icon, so an
+   actions column with an inline text field doesn't stay wide all the time — only while
+   someone's actually using it. */
+.inline-reveal summary { list-style: none; }
+.inline-reveal summary::-webkit-details-marker { display: none; }
+.inline-reveal[open] summary { background: #eef3f1; }
+.inline-reveal form { display: flex; gap: 0.3rem; margin-top: 0.3rem; }
+.inline-reveal input { width: 8rem; font-size: 0.85rem; padding: 0.25rem 0.4rem; }
 
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; margin-top: 0.75rem; }
 .form-grid label { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.9rem; font-weight: 500; }
@@ -149,9 +187,6 @@ button:hover, .button:hover { background: var(--brand-dark); }
   padding-left: 0.5rem;
 }
 .nqs-item input { width: auto; flex: none; }
-
-.password-reset-form { display: flex; gap: 0.4rem; align-items: center; }
-.password-reset-form input { padding: 0.3rem 0.5rem; font-size: 0.85rem; width: 9rem; }
 
 .summary-table { margin-bottom: 1.5rem; }
 .summary-table .current-row { background: #eef3f1; font-weight: 600; }

@@ -39,7 +39,7 @@
     <div class="table-scroll">
       <table>
         <thead>
-          <tr><th>Date</th><th>Title</th><th>Centre</th><th>Provider</th><th>Hours</th><th>NQS</th><th></th></tr>
+          <tr><th>Date</th><th>Title</th><th>Centre</th><th>Provider</th><th>Hours</th><th>NQS</th><th class="sticky-col"></th></tr>
         </thead>
         <tbody>
           <% sessions.forEach(function(s) { %>
@@ -56,12 +56,12 @@
                 <% if (s.nqs.length === 0) { %>—<% } %>
                 <% s.nqs.forEach(function(el) { %><span class="badge nqs-tag" title="<%= el.name %>"><%= el.code %></span><% }) %>
               </td>
-              <td class="actions-cell">
-                <a href="/training/<%= s.id %>/attendance">Mark attendance</a>
+              <td class="actions-cell sticky-col">
+                <a href="/training/<%= s.id %>/attendance" class="icon-link" title="Mark attendance" aria-label="Mark attendance">☑</a>
                 <% if (s.canManage) { %>
-                  <a href="/training/<%= s.id %>/edit">Edit</a>
+                  <a href="/training/<%= s.id %>/edit" class="icon-link" title="Edit" aria-label="Edit">✎</a>
                   <form method="POST" action="/training/<%= s.id %>/delete" class="inline" onsubmit="return confirm('Delete this training session and all its attendance records? This cannot be undone.');">
-                    <button type="submit" class="link-btn danger">Delete</button>
+                    <button type="submit" class="icon-link danger" title="Delete" aria-label="Delete">🗑</button>
                   </form>
                 <% } %>
               </td>

@@ -16,7 +16,7 @@
 
     <div class="table-scroll">
       <table>
-        <thead><tr><th>Name</th><th>Position</th><th>Sessions Attended</th><th>Total Hours</th><th></th></tr></thead>
+        <thead><tr><th>Name</th><th>Position</th><th>Sessions Attended</th><th>Total Hours</th><th class="sticky-col"></th></tr></thead>
         <tbody>
           <% rows.forEach(function(s) { %>
             <tr>
@@ -24,7 +24,7 @@
               <td><%= s.position_title || "—" %></td>
               <td><%= s.sessions_attended %></td>
               <td><%= s.total_hours %></td>
-              <td><a href="/report/person/<%= s.id %>">Individual report</a></td>
+              <td class="sticky-col"><a href="/report/person/<%= s.id %>" class="icon-link" title="Individual report" aria-label="Individual report">📄</a></td>
             </tr>
           <% }) %>
           <% if (rows.length === 0) { %>
