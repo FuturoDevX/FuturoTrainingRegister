@@ -3,6 +3,7 @@ const bcrypt = require("bcryptjs");
 const db = require("../db/db");
 const { requireLogin, requireAdmin } = require("../middleware/auth");
 const { setFlash } = require("../middleware/flash");
+const { logAction } = require("../services/audit");
 const { runSync } = require("../services/employmentHero");
 
 // Render's persistent disk has no automatic backups (unlike its managed Postgres, which
@@ -17,31 +18,21 @@ function backupFilePath() {
   return path.resolve(process.env.DB_PATH || "./data/training.db");
 }
 
+function getUsers() {
+  return db.prepare("SELECT u.*, l.name AS location_name FROM users u LEFT JOIN locations l ON l.id = u.location_id ORDER BY u.role, u.full_name").all();
+}
+
 const router = express.Router();
 
 // Path-scoped deliberately — an unscoped router.use() here would block every other
 // router mounted after this one (see the same gotcha noted in PMS-App/routes/admin.js).
 router.use("/admin", requireLogin, requireAdmin);
 
-router.get("/admin/export", (req, res) => {
-  const filePath = backupFilePath();
-  const stamp = new Date().toISOString().slice(0, 10);
-  res.download(filePath, `training-tracker-backup-${stamp}.db`);
-});
+router.get("/admin", (req, res) => res.redirect("/admin/users"));
 
-router.get("/admin", (req, res) => {
+router.get("/admin/users", (req, res) => {
   const locations = db.prepare("SELECT * FROM locations ORDER BY name").all();
-  const users = db.prepare("SELECT u.*, l.name AS location_name FROM users u LEFT JOIN locations l ON l.id = u.location_id ORDER BY u.role, u.full_name").all();
-  const syncLog = db.prepare("SELECT * FROM sync_log ORDER BY run_at DESC LIMIT 10").all();
-  res.render("admin", { locations, users, syncLog, syncResult: null });
-});
-
-router.post("/admin/sync", async (req, res) => {
-  const result = await runSync();
-  const locations = db.prepare("SELECT * FROM locations ORDER BY name").all();
-  const users = db.prepare("SELECT u.*, l.name AS location_name FROM users u LEFT JOIN locations l ON l.id = u.location_id ORDER BY u.role, u.full_name").all();
-  const syncLog = db.prepare("SELECT * FROM sync_log ORDER BY run_at DESC LIMIT 10").all();
-  res.render("admin", { locations, users, syncLog, syncResult: result });
+  res.render("admin-users", { users: getUsers(), locations, activeTab: "users" });
 });
 
 router.post("/admin/users", (req, res) => {
@@ -54,16 +45,18 @@ router.post("/admin/users", (req, res) => {
     INSERT INTO users (email, password_hash, role, location_id, full_name)
     VALUES (?, ?, ?, ?, ?)
   `).run(email, hash, role, role === "centre_manager" ? parseInt(location_id, 10) : null, full_name);
+  logAction(req, "user.create", `Created ${role} login for ${full_name} (${email})`);
   setFlash(req, "success", `Login created for ${full_name} (${email}).`);
-  res.redirect("/admin");
+  res.redirect("/admin/users");
 });
 
 router.post("/admin/users/:id/toggle", (req, res) => {
   const u = db.prepare("SELECT * FROM users WHERE id = ?").get(req.params.id);
   if (!u) return res.status(404).render("error", { message: "User not found." });
   db.prepare("UPDATE users SET active = ? WHERE id = ?").run(u.active ? 0 : 1, u.id);
+  logAction(req, "user.toggle", `${u.active ? "Deactivated" : "Reactivated"} ${u.full_name} (${u.email})`);
   setFlash(req, "success", `${u.full_name} ${u.active ? "deactivated" : "reactivated"}.`);
-  res.redirect("/admin");
+  res.redirect("/admin/users");
 });
 
 // Lets Admin reset anyone's password (e.g. a Centre Manager forgot theirs) without
@@ -75,13 +68,47 @@ router.post("/admin/users/:id/password", (req, res) => {
   const password = (req.body.password || "").trim();
   if (password.length < 8) {
     setFlash(req, "error", `Password not updated for ${u.full_name} — must be at least 8 characters.`);
-    return res.redirect("/admin");
+    return res.redirect("/admin/users");
   }
 
   const hash = bcrypt.hashSync(password, 10);
   db.prepare("UPDATE users SET password_hash = ? WHERE id = ?").run(hash, u.id);
+  logAction(req, "user.password_reset", `Reset password for ${u.full_name} (${u.email})`);
   setFlash(req, "success", `Password updated for ${u.full_name}.`);
-  res.redirect("/admin");
+  res.redirect("/admin/users");
+});
+
+router.get("/admin/sync", (req, res) => {
+  const syncLog = db.prepare("SELECT * FROM sync_log ORDER BY run_at DESC LIMIT 10").all();
+  res.render("admin-sync", { syncLog, activeTab: "sync" });
+});
+
+router.post("/admin/sync", async (req, res) => {
+  const result = await runSync();
+  if (result.ok) {
+    logAction(req, "sync.run", `Employment Hero sync: ${result.staffSynced} active staff synced`);
+    setFlash(req, "success", `Synced ${result.staffSynced} staff record(s).`);
+  } else {
+    logAction(req, "sync.run", `Employment Hero sync failed: ${result.error}`);
+    setFlash(req, "error", `Sync failed: ${result.error}`);
+  }
+  res.redirect("/admin/sync");
+});
+
+router.get("/admin/backup", (req, res) => {
+  res.render("admin-backup", { activeTab: "backup" });
+});
+
+router.get("/admin/export", (req, res) => {
+  const filePath = backupFilePath();
+  const stamp = new Date().toISOString().slice(0, 10);
+  logAction(req, "backup.export", "Downloaded a database backup");
+  res.download(filePath, `training-tracker-backup-${stamp}.db`);
+});
+
+router.get("/admin/audit", (req, res) => {
+  const entries = db.prepare("SELECT * FROM audit_log ORDER BY created_at DESC LIMIT 200").all();
+  res.render("admin-audit", { entries, activeTab: "audit" });
 });
 
 module.exports = router;

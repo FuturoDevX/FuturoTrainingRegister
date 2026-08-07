@@ -1,0 +1,38 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Admin — Audit Log — Futuro Training Tracker</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <%- include("partials/header", { user }) %>
+  <main class="container">
+    <h1>Admin</h1>
+    <%- include("partials/admin-tabs", { activeTab }) %>
+
+    <section class="card">
+      <h2>Audit Log</h2>
+      <p class="muted">Every session/attendance/user/sync/backup action, most recent first (last 200).</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>When</th><th>Who</th><th>Action</th><th>Detail</th></tr></thead>
+          <tbody>
+            <% entries.forEach(function(e) { %>
+              <tr>
+                <td><%= e.created_at %></td>
+                <td><%= e.actor_email || "System (scheduled)" %></td>
+                <td><span class="badge action-badge"><%= e.action %></span></td>
+                <td><%= e.detail || "—" %></td>
+              </tr>
+            <% }) %>
+            <% if (entries.length === 0) { %>
+              <tr><td colspan="4" class="muted">Nothing logged yet.</td></tr>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

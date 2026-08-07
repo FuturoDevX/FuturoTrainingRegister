@@ -2,54 +2,14 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Admin — Futuro Training Tracker</title>
+  <title>Admin — Users — Futuro Training Tracker</title>
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
   <%- include("partials/header", { user }) %>
   <main class="container">
     <h1>Admin</h1>
-
-    <section class="card">
-      <h2>Backup</h2>
-      <p class="muted">
-        Render's disk has no automatic backups — this downloads a complete, self-contained
-        copy of the database as it is right now. Worth doing every so often, and definitely
-        before any big change (e.g. a fresh EH sync or bulk data entry).
-      </p>
-      <a class="button" href="/admin/export">Download database backup</a>
-    </section>
-
-    <section class="card">
-      <h2>Employment Hero sync</h2>
-      <p class="muted">Pulls the current staff/centre roster. Doesn't touch pay data.</p>
-      <% if (syncResult) { %>
-        <% if (syncResult.ok) { %>
-          <p class="success">Synced <%= syncResult.staffSynced %> staff record(s).</p>
-        <% } else { %>
-          <p class="error">Sync failed: <%= syncResult.error %></p>
-        <% } %>
-      <% } %>
-      <form method="POST" action="/admin/sync"><button type="submit">Run sync now</button></form>
-      <div class="table-scroll">
-        <table>
-          <thead><tr><th>Run at</th><th>Status</th><th>Staff synced</th><th>Detail</th></tr></thead>
-          <tbody>
-            <% syncLog.forEach(function(l) { %>
-              <tr>
-                <td><%= l.run_at %></td>
-                <td><%= l.status %></td>
-                <td><%= l.staff_synced %></td>
-                <td><%= l.detail %></td>
-              </tr>
-            <% }) %>
-            <% if (syncLog.length === 0) { %>
-              <tr><td colspan="4" class="muted">No syncs run yet.</td></tr>
-            <% } %>
-          </tbody>
-        </table>
-      </div>
-    </section>
+    <%- include("partials/admin-tabs", { activeTab }) %>
 
     <section class="card">
       <h2>Users</h2>

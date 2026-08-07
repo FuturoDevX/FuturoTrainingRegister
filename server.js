@@ -8,6 +8,7 @@ const db = require("./db/db"); // ensures data/ dir exists and base schema is cr
 require("./db/migrate"); // idempotent — patches databases created before a schema change
 const { runSync } = require("./services/employmentHero");
 const { flashMiddleware } = require("./middleware/flash");
+const { logAction } = require("./services/audit");
 
 const authRoutes = require("./routes/auth");
 const trainingRoutes = require("./routes/training");
@@ -45,7 +46,11 @@ app.use((req, res) => res.status(404).render("error", { message: "Page not found
 // stay close in timing without hitting the EH API at the exact same second.
 cron.schedule("50 5 * * *", () => {
   console.log("Running scheduled Employment Hero sync...");
-  runSync().then((r) => console.log("Sync result:", r));
+  runSync().then((r) => {
+    console.log("Sync result:", r);
+    // req is null — this is unattended, no logged-in user to attribute it to.
+    logAction(null, "sync.run", r.ok ? `Nightly Employment Hero sync: ${r.staffSynced} active staff synced` : `Nightly Employment Hero sync failed: ${r.error}`);
+  });
 });
 
 const PORT = process.env.PORT || 3001;

@@ -2,6 +2,7 @@ const express = require("express");
 const db = require("../db/db");
 const { requireLogin, scopedLocationId } = require("../middleware/auth");
 const { setFlash } = require("../middleware/flash");
+const { logAction } = require("../services/audit");
 const nqs = require("../services/nqs");
 
 const router = express.Router();
@@ -71,6 +72,7 @@ router.post("/training", requireLogin, (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `).run(locationId, req.body.title, req.body.session_date, req.body.provider || null, parseFloat(req.body.hours), req.body.notes || null, req.session.user.id, allCentres);
   saveNqsLinks(result.lastInsertRowid, req.body.nqs_elements);
+  logAction(req, "session.create", `Created "${req.body.title}"`);
   setFlash(req, "success", `"${req.body.title}" created.`);
   res.redirect("/training");
 });
@@ -111,6 +113,7 @@ router.post("/training/:id/edit", requireLogin, (req, res) => {
   db.prepare("DELETE FROM training_session_nqs WHERE session_id = ?").run(session.id);
   saveNqsLinks(session.id, req.body.nqs_elements);
 
+  logAction(req, "session.edit", `Edited "${req.body.title}" (was "${session.title}")`);
   setFlash(req, "success", `"${req.body.title}" updated.`);
   res.redirect("/training");
 });
@@ -129,6 +132,7 @@ router.post("/training/:id/delete", requireLogin, (req, res) => {
   });
   txn();
 
+  logAction(req, "session.delete", `Deleted "${session.title}"`);
   setFlash(req, "success", `"${session.title}" and its attendance records were deleted.`);
   res.redirect("/training");
 });
@@ -216,7 +220,9 @@ router.post("/training/:id/attendance", requireLogin, (req, res) => {
   txn();
 
   const viewLocation = db.prepare("SELECT name FROM locations WHERE id = ?").get(viewLocationId);
-  setFlash(req, "success", `Attendance saved for ${viewLocation ? viewLocation.name : "this centre"} (${markedCount} of ${staff.length} marked attended).`);
+  const viewLocationName = viewLocation ? viewLocation.name : "this centre";
+  logAction(req, "attendance.mark", `Marked attendance for "${session.title}" — ${viewLocationName} (${markedCount} of ${staff.length} attended)`);
+  setFlash(req, "success", `Attendance saved for ${viewLocationName} (${markedCount} of ${staff.length} marked attended).`);
 
   if (session.all_centres && !scoped) {
     return res.redirect(`/training/${session.id}/attendance?centre=${viewLocationId}`);

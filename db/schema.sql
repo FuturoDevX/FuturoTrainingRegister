@@ -78,3 +78,14 @@ CREATE TABLE IF NOT EXISTS sync_log (
   staff_synced INTEGER DEFAULT 0,
   detail TEXT
 );
+
+-- Who did what, when — accountability trail for anything that changes data (sessions,
+-- attendance, logins, exports). Distinct from sync_log, which is EH-sync-specific detail.
+CREATE TABLE IF NOT EXISTS audit_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  actor_email TEXT,                   -- NULL for unattended actions (e.g. nightly cron sync)
+  actor_role TEXT,
+  action TEXT NOT NULL,               -- short label, e.g. 'session.create'
+  detail TEXT
+);
