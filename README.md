@@ -77,15 +77,14 @@ Render is the confirmed hosting choice (same as PMS-App). `render.yaml` in this 
 is a Blueprint — Render reads it and creates the web service + persistent disk
 automatically, you don't need to click through the settings by hand.
 
-1. **Push this folder to a GitHub repo.** From inside `TrainingTracker-App/`:
-   ```bash
-   git init
-   git add .
-   git commit -m "Initial commit"
-   ```
-   Then create an empty repo on GitHub (via github.com — "New repository", don't
-   initialise it with a README) and follow GitHub's "push an existing repository"
-   instructions it shows you, e.g.:
+**Cost**: this needs a persistent disk (for the SQLite file), which isn't available on
+Render's free tier. `render.yaml` requests the **Starter** plan (~$7/month) with a 1GB
+disk (~$0.25/month) — roughly $7.25/month total. Confirm current pricing on Render's
+own pricing page during signup, since it can change.
+
+1. **Push this folder to a GitHub repo** (local git repo + commits are already done —
+   `git log` shows the history). Create an empty repo on GitHub (github.com → New
+   repository, don't initialise it with a README), then:
    ```bash
    git remote add origin https://github.com/<your-username>/futuro-training-tracker.git
    git branch -M main
@@ -100,12 +99,12 @@ automatically, you don't need to click through the settings by hand.
 4. Deploy. Once it's live, open the Render service's **Shell** tab and run
    `npm run seed` once to initialise the database (creates the Admin login and demo
    Centre Manager logins).
-5. Log in as Admin and change the default password via the Admin page's user list
-   (deactivate the seeded account, create a new one with a real password) — same
-   caveat as local: no in-app password-reset yet.
+5. Log in as Admin (from the `ADMIN_EMAIL` / `ADMIN_DEFAULT_PASSWORD` you set in step
+   3) and reset it to a real password via Admin → Users → the "New password" field
+   next to your own row.
 6. From the Admin page, click **"Run sync now"** to pull the real staff roster, then
-   create the real Centre Manager logins (Admin → New login) and deactivate/remove the
-   demo ones.
+   create the real Centre Manager logins (Admin → New login, one per centre including
+   Oran Park and Cobbitty) and deactivate the demo `cm.*@futuro.nsw.edu.au` accounts.
 
 **Never commit your `.env` file** — it's already gitignored, and `render.yaml`
 deliberately leaves the secret values blank (`sync: false`) so they only ever live in
