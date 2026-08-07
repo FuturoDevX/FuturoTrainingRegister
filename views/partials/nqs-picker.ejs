@@ -1,0 +1,24 @@
+<%
+  // Locals: qualityAreas (required), selectedCodes (optional Set, defaults empty)
+  var _selected = typeof selectedCodes !== "undefined" ? selectedCodes : new Set();
+%>
+<div class="full">
+  <details class="nqs-picker">
+    <summary>NQS elements (optional) — click to choose</summary>
+    <div class="nqs-checklist">
+      <% qualityAreas.forEach(function(area) { %>
+        <div class="nqs-group">
+          <div class="nqs-group-title">QA<%= area.number %> — <%= area.name %></div>
+          <% area.standards.forEach(function(standard) { %>
+            <% standard.elements.forEach(function(el) { %>
+              <label class="nqs-item">
+                <input type="checkbox" name="nqs_elements" value="<%= el.code %>" <%= _selected.has(el.code) ? "checked" : "" %>>
+                <%= el.code %> — <%= el.name %>
+              </label>
+            <% }) %>
+          <% }) %>
+        </div>
+      <% }) %>
+    </div>
+  </details>
+</div>

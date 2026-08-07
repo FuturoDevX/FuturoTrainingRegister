@@ -30,6 +30,14 @@ function saveNqsLinks(sessionId, submitted) {
   txn();
 }
 
+// Editing/deleting a session's own details (title, date, hours, NQS links, etc.) is
+// narrower than attendance access: only the hosting centre's manager or Admin — not
+// every manager a shared "all centres" session happens to be open to.
+function canManageSession(req, session) {
+  const scoped = scopedLocationId(req);
+  return !scoped || session.location_id === scoped;
+}
+
 router.get("/training", requireLogin, (req, res) => {
   const locationId = scopedLocationId(req);
   // A Centre Manager sees sessions hosted at their own centre, plus any session open to
@@ -44,6 +52,7 @@ router.get("/training", requireLogin, (req, res) => {
       `).all(locationId)
     : db.prepare("SELECT t.*, l.name AS location_name FROM training_sessions t LEFT JOIN locations l ON l.id = t.location_id ORDER BY t.session_date DESC").all();
   attachNqsLinks(sessions);
+  for (const s of sessions) s.canManage = canManageSession(req, s);
 
   const locations = db.prepare("SELECT * FROM locations ORDER BY name").all();
   res.render("training-list", { sessions, scoped: !!locationId, locations, qualityAreas: nqs.QUALITY_AREAS });
@@ -63,6 +72,64 @@ router.post("/training", requireLogin, (req, res) => {
   `).run(locationId, req.body.title, req.body.session_date, req.body.provider || null, parseFloat(req.body.hours), req.body.notes || null, req.session.user.id, allCentres);
   saveNqsLinks(result.lastInsertRowid, req.body.nqs_elements);
   setFlash(req, "success", `"${req.body.title}" created.`);
+  res.redirect("/training");
+});
+
+router.get("/training/:id/edit", requireLogin, (req, res) => {
+  const session = db.prepare("SELECT * FROM training_sessions WHERE id = ?").get(req.params.id);
+  if (!session) return res.status(404).render("error", { message: "Training session not found." });
+  if (!canManageSession(req, session)) {
+    return res.status(403).render("error", { message: "Only the hosting centre's manager or Admin can edit this session." });
+  }
+
+  attachNqsLinks([session]);
+  const selectedCodes = new Set(session.nqs.map((el) => el.code));
+  const locations = db.prepare("SELECT * FROM locations ORDER BY name").all();
+
+  res.render("training-edit", { session, selectedCodes, locations, qualityAreas: nqs.QUALITY_AREAS, scoped: !!scopedLocationId(req) });
+});
+
+router.post("/training/:id/edit", requireLogin, (req, res) => {
+  const session = db.prepare("SELECT * FROM training_sessions WHERE id = ?").get(req.params.id);
+  if (!session) return res.status(404).render("error", { message: "Training session not found." });
+  if (!canManageSession(req, session)) {
+    return res.status(403).render("error", { message: "Only the hosting centre's manager or Admin can edit this session." });
+  }
+
+  const scoped = scopedLocationId(req);
+  const locationId = scoped || (req.body.location_id ? parseInt(req.body.location_id, 10) : session.location_id);
+  const allCentres = req.body.all_centres ? 1 : 0;
+
+  db.prepare(`
+    UPDATE training_sessions
+    SET location_id = ?, title = ?, session_date = ?, provider = ?, hours = ?, notes = ?, all_centres = ?
+    WHERE id = ?
+  `).run(locationId, req.body.title, req.body.session_date, req.body.provider || null, parseFloat(req.body.hours), req.body.notes || null, allCentres, session.id);
+
+  // Simplest correct way to handle "replace the NQS selection" — clear and re-save,
+  // rather than diffing old vs new (this app has no per-element metadata worth preserving).
+  db.prepare("DELETE FROM training_session_nqs WHERE session_id = ?").run(session.id);
+  saveNqsLinks(session.id, req.body.nqs_elements);
+
+  setFlash(req, "success", `"${req.body.title}" updated.`);
+  res.redirect("/training");
+});
+
+router.post("/training/:id/delete", requireLogin, (req, res) => {
+  const session = db.prepare("SELECT * FROM training_sessions WHERE id = ?").get(req.params.id);
+  if (!session) return res.status(404).render("error", { message: "Training session not found." });
+  if (!canManageSession(req, session)) {
+    return res.status(403).render("error", { message: "Only the hosting centre's manager or Admin can delete this session." });
+  }
+
+  const txn = db.transaction(() => {
+    db.prepare("DELETE FROM training_attendance WHERE session_id = ?").run(session.id);
+    db.prepare("DELETE FROM training_session_nqs WHERE session_id = ?").run(session.id);
+    db.prepare("DELETE FROM training_sessions WHERE id = ?").run(session.id);
+  });
+  txn();
+
+  setFlash(req, "success", `"${session.title}" and its attendance records were deleted.`);
   res.redirect("/training");
 });
 

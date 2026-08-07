@@ -30,26 +30,7 @@
           <input type="checkbox" name="all_centres" value="1">
           Open to all centres
         </label>
-        <div class="full">
-          <details class="nqs-picker">
-            <summary>NQS elements (optional) — click to choose</summary>
-            <div class="nqs-checklist">
-              <% qualityAreas.forEach(function(area) { %>
-                <div class="nqs-group">
-                  <div class="nqs-group-title">QA<%= area.number %> — <%= area.name %></div>
-                  <% area.standards.forEach(function(standard) { %>
-                    <% standard.elements.forEach(function(el) { %>
-                      <label class="nqs-item">
-                        <input type="checkbox" name="nqs_elements" value="<%= el.code %>">
-                        <%= el.code %> — <%= el.name %>
-                      </label>
-                    <% }) %>
-                  <% }) %>
-                </div>
-              <% }) %>
-            </div>
-          </details>
-        </div>
+        <%- include("partials/nqs-picker", { qualityAreas: qualityAreas }) %>
         <label class="full">Notes<textarea name="notes" rows="2"></textarea></label>
         <button type="submit" class="full">Create session</button>
       </form>
@@ -75,7 +56,15 @@
                 <% if (s.nqs.length === 0) { %>—<% } %>
                 <% s.nqs.forEach(function(el) { %><span class="badge nqs-tag" title="<%= el.name %>"><%= el.code %></span><% }) %>
               </td>
-              <td><a href="/training/<%= s.id %>/attendance">Mark attendance</a></td>
+              <td class="actions-cell">
+                <a href="/training/<%= s.id %>/attendance">Mark attendance</a>
+                <% if (s.canManage) { %>
+                  <a href="/training/<%= s.id %>/edit">Edit</a>
+                  <form method="POST" action="/training/<%= s.id %>/delete" class="inline" onsubmit="return confirm('Delete this training session and all its attendance records? This cannot be undone.');">
+                    <button type="submit" class="link-btn danger">Delete</button>
+                  </form>
+                <% } %>
+              </td>
             </tr>
           <% }) %>
           <% if (sessions.length === 0) { %>

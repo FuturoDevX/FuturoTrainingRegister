@@ -1,0 +1,38 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Edit — <%= session.title %></title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <%- include("partials/header", { user }) %>
+  <main class="container">
+    <p><a href="/training">&larr; Back to sessions</a></p>
+    <h1>Edit session</h1>
+
+    <form method="POST" action="/training/<%= session.id %>/edit" class="form-grid card">
+      <label>Title<input type="text" name="title" required value="<%= session.title %>"></label>
+      <label>Date<input type="date" name="session_date" required value="<%= session.session_date %>"></label>
+      <label>Provider<input type="text" name="provider" value="<%= session.provider || '' %>"></label>
+      <label>Hours<input type="number" name="hours" step="0.25" min="0" required value="<%= session.hours %>"></label>
+      <% if (!scoped) { %>
+        <label>Centre
+          <select name="location_id" required>
+            <% locations.forEach(function(l) { %>
+              <option value="<%= l.id %>" <%= l.id === session.location_id ? "selected" : "" %>><%= l.name %></option>
+            <% }) %>
+          </select>
+        </label>
+      <% } %>
+      <label class="full checkbox-row">
+        <input type="checkbox" name="all_centres" value="1" <%= session.all_centres ? "checked" : "" %>>
+        Open to all centres
+      </label>
+      <%- include("partials/nqs-picker", { qualityAreas: qualityAreas, selectedCodes: selectedCodes }) %>
+      <label class="full">Notes<textarea name="notes" rows="2"><%= session.notes || '' %></textarea></label>
+      <button type="submit" class="full">Save changes</button>
+    </form>
+  </main>
+</body>
+</html>

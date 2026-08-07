@@ -41,15 +41,20 @@ body {
 .topbar nav a:hover { color: white; }
 .topbar .who { color: #9fc9bd; font-size: 0.9rem; }
 
+/* Default styling assumes a white background (used on Admin/Sessions cards); the
+   topbar override below restores the pale colour needed against the dark header. */
 .link-btn {
   background: none;
   border: none;
-  color: #d9efe9;
+  color: var(--brand);
   cursor: pointer;
   font: inherit;
   padding: 0;
   text-decoration: underline;
 }
+.topbar .link-btn { color: #d9efe9; }
+.topbar .link-btn:hover { color: white; }
+.link-btn.danger { color: var(--error); }
 
 .container { max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem; }
 
@@ -73,6 +78,8 @@ table { width: 100%; border-collapse: collapse; background: white; border: 1px s
 th, td { text-align: left; padding: 0.6rem 0.9rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
 th { background: #eef3f1; font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.02em; }
 tr:last-child td { border-bottom: none; }
+
+.actions-cell { display: flex; align-items: center; gap: 0.9rem; }
 
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; margin-top: 0.75rem; }
 .form-grid label { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.9rem; font-weight: 500; }
