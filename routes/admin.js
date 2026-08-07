@@ -5,11 +5,29 @@ const { requireLogin, requireAdmin } = require("../middleware/auth");
 const { setFlash } = require("../middleware/flash");
 const { runSync } = require("../services/employmentHero");
 
+// Render's persistent disk has no automatic backups (unlike its managed Postgres, which
+// gets point-in-time recovery) — this is the only backup this app has, so it matters
+// that it actually works. WAL mode keeps recent writes in a separate -wal file rather
+// than the main .db file; TRUNCATE checkpoints everything back into the main file (and
+// empties the wal file) so the single downloaded file is a complete, self-contained
+// snapshot rather than missing whatever hasn't been checkpointed yet.
+function backupFilePath() {
+  const path = require("path");
+  db.pragma("wal_checkpoint(TRUNCATE)");
+  return path.resolve(process.env.DB_PATH || "./data/training.db");
+}
+
 const router = express.Router();
 
 // Path-scoped deliberately — an unscoped router.use() here would block every other
 // router mounted after this one (see the same gotcha noted in PMS-App/routes/admin.js).
 router.use("/admin", requireLogin, requireAdmin);
+
+router.get("/admin/export", (req, res) => {
+  const filePath = backupFilePath();
+  const stamp = new Date().toISOString().slice(0, 10);
+  res.download(filePath, `training-tracker-backup-${stamp}.db`);
+});
 
 router.get("/admin", (req, res) => {
   const locations = db.prepare("SELECT * FROM locations ORDER BY name").all();
