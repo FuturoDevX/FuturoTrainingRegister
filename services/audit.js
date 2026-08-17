@@ -12,4 +12,10 @@ function logAction(req, action, detail) {
   insert.run(user ? user.email : null, user ? user.role : null, action, detail || null);
 }
 
-module.exports = { logAction };
+// Lower-level primitive for cases with no req.session.user to pull from — e.g. a failed
+// login attempt (no session yet) or a login success (session isn't set until after).
+function logEvent(actorEmail, actorRole, action, detail) {
+  insert.run(actorEmail || null, actorRole || null, action, detail || null);
+}
+
+module.exports = { logAction, logEvent };

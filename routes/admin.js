@@ -78,6 +78,66 @@ router.post("/admin/users/:id/password", (req, res) => {
   res.redirect("/admin/users");
 });
 
+router.get("/admin/users/:id/edit", (req, res) => {
+  const editUser = db.prepare("SELECT * FROM users WHERE id = ?").get(req.params.id);
+  if (!editUser) return res.status(404).render("error", { message: "User not found." });
+  const locations = db.prepare("SELECT * FROM locations ORDER BY name").all();
+  res.render("admin-user-edit", { editUser, locations, activeTab: "users" });
+});
+
+router.post("/admin/users/:id/edit", (req, res) => {
+  const u = db.prepare("SELECT * FROM users WHERE id = ?").get(req.params.id);
+  if (!u) return res.status(404).render("error", { message: "User not found." });
+
+  const { email, full_name, role, location_id } = req.body;
+  if (role === "centre_manager" && !location_id) {
+    return res.status(400).render("error", { message: "A centre is required for a Centre Manager login." });
+  }
+  const locationId = role === "centre_manager" ? parseInt(location_id, 10) : null;
+
+  try {
+    db.prepare("UPDATE users SET email = ?, full_name = ?, role = ?, location_id = ? WHERE id = ?")
+      .run(email, full_name, role, locationId, u.id);
+  } catch (err) {
+    if (err.code === "SQLITE_CONSTRAINT_UNIQUE") {
+      setFlash(req, "error", `Can't update ${u.full_name} — ${email} is already used by another login.`);
+      return res.redirect("/admin/users");
+    }
+    throw err;
+  }
+
+  logAction(req, "user.edit", `Edited ${u.full_name} (${u.email}) → ${full_name} (${email}), ${role}`);
+  setFlash(req, "success", `${full_name} updated.`);
+  res.redirect("/admin/users");
+});
+
+// Hard delete — distinct from toggle (deactivate), which just blocks login while
+// preserving history. Blocked by the training_sessions.created_by foreign key if this
+// user has created sessions; deactivating is the right call for someone with real
+// history, so that's surfaced as guidance rather than a raw SQL error.
+router.post("/admin/users/:id/delete", (req, res) => {
+  const u = db.prepare("SELECT * FROM users WHERE id = ?").get(req.params.id);
+  if (!u) return res.status(404).render("error", { message: "User not found." });
+
+  if (req.session.user.id === u.id) {
+    setFlash(req, "error", "You can't delete your own login while logged in as it.");
+    return res.redirect("/admin/users");
+  }
+
+  try {
+    db.prepare("DELETE FROM users WHERE id = ?").run(u.id);
+    logAction(req, "user.delete", `Deleted ${u.role} login for ${u.full_name} (${u.email})`);
+    setFlash(req, "success", `${u.full_name} deleted.`);
+  } catch (err) {
+    if (err.code === "SQLITE_CONSTRAINT_FOREIGNKEY") {
+      setFlash(req, "error", `Can't delete ${u.full_name} — they've created training session(s) tied to this login. Deactivate instead to keep that history intact.`);
+    } else {
+      throw err;
+    }
+  }
+  res.redirect("/admin/users");
+});
+
 router.get("/admin/sync", (req, res) => {
   const syncLog = db.prepare("SELECT * FROM sync_log ORDER BY run_at DESC LIMIT 10").all();
   res.render("admin-sync", { syncLog, activeTab: "sync" });

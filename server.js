@@ -17,6 +17,11 @@ const adminRoutes = require("./routes/admin");
 
 const app = express();
 
+// Render sits in front of the app as a reverse proxy — without this, req.ip always
+// returns Render's internal proxy address instead of the real visitor IP, which would
+// make the login audit's IP field useless (every entry showing the same address).
+app.set("trust proxy", true);
+
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 app.use(express.urlencoded({ extended: true }));

@@ -1,0 +1,38 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Edit — <%= editUser.full_name %> — Futuro Training Tracker</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <%- include("partials/header", { user }) %>
+  <main class="container">
+    <h1>Admin</h1>
+    <%- include("partials/admin-tabs", { activeTab }) %>
+
+    <p><a href="/admin/users">&larr; Back to users</a></p>
+    <h2>Edit login</h2>
+
+    <form method="POST" action="/admin/users/<%= editUser.id %>/edit" class="form-grid card">
+      <label>Full name<input type="text" name="full_name" required value="<%= editUser.full_name %>"></label>
+      <label>Email<input type="email" name="email" required value="<%= editUser.email %>"></label>
+      <label>Role
+        <select name="role" required>
+          <option value="centre_manager" <%= editUser.role === "centre_manager" ? "selected" : "" %>>Centre Manager</option>
+          <option value="admin" <%= editUser.role === "admin" ? "selected" : "" %>>Admin</option>
+        </select>
+      </label>
+      <label>Centre (Centre Manager only)
+        <select name="location_id">
+          <option value="">—</option>
+          <% locations.forEach(function(l) { %>
+            <option value="<%= l.id %>" <%= l.id === editUser.location_id ? "selected" : "" %>><%= l.name %></option>
+          <% }) %>
+        </select>
+      </label>
+      <button type="submit" class="full">Save changes</button>
+    </form>
+  </main>
+</body>
+</html>
