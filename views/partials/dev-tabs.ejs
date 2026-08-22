@@ -1,4 +1,5 @@
 <nav class="admin-tabs">
+  <a href="/development/plans<%= isAdmin ? '?centre=' + workingCentreId : '' %>" class="<%= activeTab === 'plans' ? 'active' : '' %>">Plans</a>
   <a href="/development/rooms<%= isAdmin ? '?centre=' + workingCentreId : '' %>" class="<%= activeTab === 'rooms' ? 'active' : '' %>">Rooms</a>
   <a href="/development/people<%= isAdmin ? '?centre=' + workingCentreId : '' %>" class="<%= activeTab === 'people' ? 'active' : '' %>">People</a>
 </nav>

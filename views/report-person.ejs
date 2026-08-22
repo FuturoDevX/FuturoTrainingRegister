@@ -14,6 +14,39 @@
       <button class="button no-print" onclick="window.print()">Print</button>
     </div>
     <p class="muted"><%= staffMember.position_title || "—" %> &middot; <%= staffMember.location_name %></p>
+
+    <!-- Development plan -->
+    <%
+      var goalStatusLabel = { not_started: "Not started", in_progress: "In progress", achieved: "Achieved", dropped: "Dropped" };
+    %>
+    <h2>Development plan</h2>
+    <% if (!idp) { %>
+      <p class="muted">No IDP on record.</p>
+    <% } else { %>
+      <p>
+        <span class="badge status-<%= idp.status %>"><%= idp.status %></span>
+        <% if (idp.review_date) { %><span class="muted">Next review: <%= idp.review_date %></span><% } %>
+      </p>
+      <% if (idp.focus) { %><p><%= idp.focus %></p><% } %>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Goal</th><th>Target</th><th>NQS</th><th>Status</th></tr></thead>
+          <tbody>
+            <% goals.forEach(function(g) { %>
+              <tr>
+                <td><%= g.title %></td>
+                <td><%= g.target_date || "—" %></td>
+                <td><% if (g.nqs_element_code) { %><span class="badge nqs-tag" title="<%= nqs.elementLabel(g.nqs_element_code) %>"><%= g.nqs_element_code %></span><% } else { %>—<% } %></td>
+                <td><span class="badge status-<%= g.status %>"><%= goalStatusLabel[g.status] %></span></td>
+              </tr>
+            <% }) %>
+            <% if (goals.length === 0) { %><tr><td colspan="4" class="muted">No goals recorded.</td></tr><% } %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+
+    <h2>Training</h2>
     <p><strong><%= totalHours %> hours</strong> of training attended (all-time)</p>
 
     <div class="table-scroll">

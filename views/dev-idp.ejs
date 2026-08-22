@@ -1,0 +1,183 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title><%= person.full_name %> — IDP — Futuro Training Tracker</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <%- include("partials/header", { user }) %>
+  <main class="container">
+    <p><a href="/development/plans">&larr; Back to plans</a></p>
+    <h1><%= person.full_name %></h1>
+    <p class="muted">
+      <%= roleLabel || "No development-role set" %>
+      &middot; <%= person.room_name || "No room" %>
+      &middot; <%= person.location_name %>
+    </p>
+
+    <%
+      var goalStatusLabel = { not_started: "Not started", in_progress: "In progress", achieved: "Achieved", dropped: "Dropped" };
+      function nqsOptions(selected) { /* rendered inline below */ }
+    %>
+
+    <!-- Supporting leaders -->
+    <section class="card">
+      <h2>Supporting leaders</h2>
+      <% if (supporters.mode === "auto") { %>
+        <% if (supporters.derived.slots.length === 0) { %>
+          <p class="muted">Set this person's development-role (on the People tab) to see who supports their development.</p>
+        <% } else { %>
+          <p class="muted">Derived automatically from their room, centre and the org roles.</p>
+          <ul class="supporter-list">
+            <% supporters.derived.slots.forEach(function(slot) { %>
+              <li>
+                <span class="supporter-role"><%= slot.label %></span>
+                <% if (slot.staff) { %><%= slot.staff.full_name %><% } else { %><span class="not-set"><%= slot.note %></span><% } %>
+              </li>
+            <% }) %>
+          </ul>
+        <% } %>
+      <% } else { %>
+        <p class="muted">Set manually for this plan (overriding the automatic chain).</p>
+        <ul class="supporter-list">
+          <% supporters.manual.forEach(function(s) { %><li><%= s.full_name %></li><% }) %>
+          <% if (supporters.manual.length === 0) { %><li class="not-set">None selected — edit the plan below to choose.</li><% } %>
+        </ul>
+      <% } %>
+    </section>
+
+    <% if (!idp) { %>
+      <section class="card">
+        <p>No development plan yet for <%= person.full_name %>.</p>
+        <form method="POST" action="/development/idp/<%= person.id %>/create">
+          <button type="submit">Start an IDP</button>
+        </form>
+      </section>
+    <% } else { %>
+      <!-- Plan settings -->
+      <section class="card">
+        <div class="row-between">
+          <h2>Plan</h2>
+          <span class="badge status-<%= idp.status %>"><%= idp.status %></span>
+        </div>
+        <form method="POST" action="/development/idp/<%= idp.id %>" class="form-grid">
+          <label class="full">Focus (what this plan is about)
+            <textarea name="focus" rows="2" placeholder="e.g. Building confidence leading room programming"><%= idp.focus || "" %></textarea>
+          </label>
+          <label>Status
+            <select name="status">
+              <% ["draft","active","completed"].forEach(function(st) { %>
+                <option value="<%= st %>" <%= idp.status === st ? "selected" : "" %>><%= st.charAt(0).toUpperCase() + st.slice(1) %></option>
+              <% }) %>
+            </select>
+          </label>
+          <label>Next review date
+            <input type="date" name="review_date" value="<%= idp.review_date || "" %>">
+          </label>
+          <label>Supporting leaders
+            <select name="supporters_mode">
+              <option value="auto" <%= idp.supporters_mode === "auto" ? "selected" : "" %>>Automatic (derived)</option>
+              <option value="manual" <%= idp.supporters_mode === "manual" ? "selected" : "" %>>Manual override</option>
+            </select>
+          </label>
+          <div class="full">
+            <details class="nqs-picker" <%= idp.supporters_mode === "manual" ? "open" : "" %>>
+              <summary>Manual supporters (used only when set to Manual override)</summary>
+              <div class="nqs-checklist">
+                <% centreStaff.forEach(function(s) { %>
+                  <label class="nqs-item">
+                    <input type="checkbox" name="supporters" value="<%= s.id %>" <%= manualIds.has(s.id) ? "checked" : "" %>>
+                    <%= s.full_name %>
+                  </label>
+                <% }) %>
+              </div>
+            </details>
+          </div>
+          <button type="submit" class="full">Save plan</button>
+        </form>
+      </section>
+
+      <!-- SMART goals -->
+      <section class="card">
+        <h2>SMART goals</h2>
+        <% goals.forEach(function(g) { %>
+          <div class="goal-card">
+            <div class="row-between">
+              <strong><%= g.title %></strong>
+              <span class="badge status-<%= g.status %>"><%= goalStatusLabel[g.status] %></span>
+            </div>
+            <% if (g.target_date || g.nqs_element_code) { %>
+              <p class="muted goal-meta">
+                <% if (g.target_date) { %>Target: <%= g.target_date %><% } %>
+                <% if (g.nqs_element_code) { %><span class="badge nqs-tag" title="<%= nqs.elementLabel(g.nqs_element_code) %>"><%= g.nqs_element_code %></span><% } %>
+              </p>
+            <% } %>
+            <details class="goal-edit">
+              <summary>View / edit</summary>
+              <form method="POST" action="/development/goals/<%= g.id %>" class="form-grid">
+                <label class="full">Title<input type="text" name="title" required value="<%= g.title %>"></label>
+                <label class="full">Specific — what exactly?<textarea name="specific" rows="2"><%= g.specific || "" %></textarea></label>
+                <label class="full">Measurable — how will we know it's done?<textarea name="measurable" rows="2"><%= g.measurable || "" %></textarea></label>
+                <label class="full">Achievable — what support makes it doable?<textarea name="achievable" rows="2"><%= g.achievable || "" %></textarea></label>
+                <label class="full">Relevant — why this, why now?<textarea name="relevant" rows="2"><%= g.relevant || "" %></textarea></label>
+                <label>Target date<input type="date" name="target_date" value="<%= g.target_date || "" %>"></label>
+                <label>NQS element
+                  <select name="nqs_element_code">
+                    <option value="">— none —</option>
+                    <% qualityAreas.forEach(function(area) { %>
+                      <optgroup label="QA<%= area.number %> — <%= area.name %>">
+                        <% area.standards.forEach(function(std) { %><% std.elements.forEach(function(el) { %>
+                          <option value="<%= el.code %>" <%= g.nqs_element_code === el.code ? "selected" : "" %>><%= el.code %> — <%= el.name %></option>
+                        <% }) %><% }) %>
+                      </optgroup>
+                    <% }) %>
+                  </select>
+                </label>
+                <label>Status
+                  <select name="status">
+                    <% Object.keys(goalStatusLabel).forEach(function(st) { %>
+                      <option value="<%= st %>" <%= g.status === st ? "selected" : "" %>><%= goalStatusLabel[st] %></option>
+                    <% }) %>
+                  </select>
+                </label>
+                <label class="full">Progress notes<textarea name="progress_notes" rows="2"><%= g.progress_notes || "" %></textarea></label>
+                <button type="submit">Save goal</button>
+              </form>
+              <form method="POST" action="/development/goals/<%= g.id %>/delete" class="inline" onsubmit="return confirm('Delete this goal?');">
+                <button type="submit" class="link-btn danger">Delete goal</button>
+              </form>
+            </details>
+          </div>
+        <% }) %>
+        <% if (goals.length === 0) { %><p class="muted">No goals yet.</p><% } %>
+
+        <details <%= goals.length === 0 ? "open" : "" %>>
+          <summary>+ Add SMART goal</summary>
+          <form method="POST" action="/development/idp/<%= idp.id %>/goals" class="form-grid">
+            <label class="full">Title<input type="text" name="title" required placeholder="e.g. Lead weekly room programming"></label>
+            <label class="full">Specific — what exactly?<textarea name="specific" rows="2"></textarea></label>
+            <label class="full">Measurable — how will we know it's done?<textarea name="measurable" rows="2"></textarea></label>
+            <label class="full">Achievable — what support makes it doable?<textarea name="achievable" rows="2"></textarea></label>
+            <label class="full">Relevant — why this, why now?<textarea name="relevant" rows="2"></textarea></label>
+            <label>Target date<input type="date" name="target_date"></label>
+            <label>NQS element
+              <select name="nqs_element_code">
+                <option value="">— none —</option>
+                <% qualityAreas.forEach(function(area) { %>
+                  <optgroup label="QA<%= area.number %> — <%= area.name %>">
+                    <% area.standards.forEach(function(std) { %><% std.elements.forEach(function(el) { %>
+                      <option value="<%= el.code %>"><%= el.code %> — <%= el.name %></option>
+                    <% }) %><% }) %>
+                  </optgroup>
+                <% }) %>
+              </select>
+            </label>
+            <button type="submit" class="full">Add goal</button>
+          </form>
+        </details>
+      </section>
+    <% } %>
+  </main>
+</body>
+</html>

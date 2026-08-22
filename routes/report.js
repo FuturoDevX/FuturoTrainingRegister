@@ -98,7 +98,12 @@ router.get("/report/person/:id", requireLogin, (req, res) => {
 
   const totalHours = sessions.reduce((sum, s) => sum + s.hours, 0);
 
-  res.render("report-person", { staffMember, sessions, totalHours, nqs });
+  // Phase 2: surface the person's current IDP + goals on the same report, so training
+  // and development sit together (the report brief's "IDPs + their training hours").
+  const idp = db.prepare("SELECT * FROM idps WHERE staff_id = ? ORDER BY created_at DESC, id DESC LIMIT 1").get(staffMember.id);
+  const goals = idp ? db.prepare("SELECT * FROM idp_goals WHERE idp_id = ? ORDER BY created_at").all(idp.id) : [];
+
+  res.render("report-person", { staffMember, sessions, totalHours, nqs, idp, goals });
 });
 
 module.exports = router;

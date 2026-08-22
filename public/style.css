@@ -118,6 +118,23 @@ body {
   vertical-align: middle;
 }
 
+/* IDP status pills — colour-coded so a plans list reads at a glance. Reuses .badge base. */
+.badge.status-draft, .badge.status-not_started { background: #eceef0; color: #556; }
+.badge.status-active, .badge.status-in_progress { background: #fff4e0; color: #8a5a00; }
+.badge.status-completed, .badge.status-achieved { background: #e4f0ec; color: var(--brand-dark); }
+.badge.status-dropped { background: #eceef0; color: #889; text-decoration: line-through; }
+.badge.overdue { background: #fbe9e7; color: var(--error); margin-left: 0.4rem; }
+
+.supporter-list { list-style: none; padding: 0; margin: 0.5rem 0 0; }
+.supporter-list li { padding: 0.35rem 0; border-bottom: 1px solid var(--border); }
+.supporter-list li:last-child { border-bottom: none; }
+.supporter-role { display: inline-block; min-width: 12rem; font-weight: 600; color: var(--brand-dark); }
+.not-set { color: var(--error); font-style: italic; }
+
+.goal-card { border: 1px solid var(--border); border-radius: 8px; padding: 0.9rem 1.1rem; margin-bottom: 0.9rem; }
+.goal-meta { margin: 0.3rem 0 0; }
+.goal-edit summary { margin-top: 0.5rem; font-size: 0.9rem; }
+
 h1 { margin-top: 0; }
 .muted { color: var(--muted); }
 .error { color: var(--error); font-weight: 500; }

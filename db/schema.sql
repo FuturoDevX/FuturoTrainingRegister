@@ -120,3 +120,50 @@ CREATE TABLE IF NOT EXISTS org_roles (
   staff_id INTEGER REFERENCES staff(id),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- An Individual Development Plan for one staff member. Design decision (confirmed):
+-- one "living" IDP per person at a time, reviewed on a cycle (review_date). A person
+-- can accumulate completed IDPs over time as history, but only one draft/active at once.
+-- Reporting counts only IDPs belonging to ACTIVE staff, so a terminated person's plan
+-- naturally drops out of the numbers without extra archival machinery.
+CREATE TABLE IF NOT EXISTS idps (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  staff_id INTEGER NOT NULL REFERENCES staff(id),
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','active','completed')),
+  focus TEXT,                          -- short overall summary of what this plan is about
+  review_date TEXT,                    -- next review due (ISO date); drives overdue reporting
+  -- 'auto' derives supporters live from room/centre/org structure (the default and the
+  -- whole point of the responsibility engine); 'manual' uses the idp_supporters rows
+  -- instead, for the occasional case that doesn't fit the standard chain.
+  supporters_mode TEXT NOT NULL DEFAULT 'auto' CHECK (supporters_mode IN ('auto','manual')),
+  created_by INTEGER REFERENCES users(id),
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- SMART goals belonging to an IDP. Each goal carries the five SMART fields, an optional
+-- link to an NQS element (reusing services/nqs.js), a running progress note, and its own
+-- status independent of the plan's overall status.
+CREATE TABLE IF NOT EXISTS idp_goals (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  idp_id INTEGER NOT NULL REFERENCES idps(id),
+  title TEXT NOT NULL,
+  specific TEXT,
+  measurable TEXT,
+  achievable TEXT,
+  relevant TEXT,
+  target_date TEXT,                    -- the "time-bound" of SMART
+  nqs_element_code TEXT,               -- optional, e.g. '1.3.1'
+  status TEXT NOT NULL DEFAULT 'not_started' CHECK (status IN ('not_started','in_progress','achieved','dropped')),
+  progress_notes TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Manual supporter overrides — only consulted when idps.supporters_mode = 'manual'.
+CREATE TABLE IF NOT EXISTS idp_supporters (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  idp_id INTEGER NOT NULL REFERENCES idps(id),
+  staff_id INTEGER NOT NULL REFERENCES staff(id),
+  UNIQUE(idp_id, staff_id)
+);
