@@ -127,8 +127,34 @@ router.get("/development/people", requireLogin, (req, res) => {
   // Attach an auto-suggested dev_role for anyone not yet classified, so the CM sees a
   // sensible default to accept rather than a blank dropdown for 200 people.
   for (const s of staff) s.suggested = suggestDevRole(s.position_title);
+  const suggestedCount = staff.filter((s) => !s.dev_role && s.suggested).length;
   const rooms = db.prepare("SELECT id, name FROM rooms WHERE location_id = ? ORDER BY name").all(ctx.workingCentreId);
-  res.render("dev-people", { ...ctx, staff, rooms, roleOptions: ROLES });
+  res.render("dev-people", { ...ctx, staff, rooms, roleOptions: ROLES, suggestedCount });
+});
+
+// Bulk-accept: set dev_role to the auto-suggestion for every not-yet-classified person
+// at the working centre — saves a Centre Manager clicking Save on dozens of rows.
+router.post("/development/people/accept-suggested", requireLogin, (req, res) => {
+  const scoped = scopedLocationId(req);
+  const centreId = scoped || (req.query.centre ? parseInt(req.query.centre, 10) : null);
+  if (!centreId) return res.status(400).render("error", { message: "A centre is required." });
+
+  const candidates = db.prepare(
+    "SELECT id, position_title FROM staff WHERE location_id = ? AND status = 'active' AND IFNULL(employment_type,'') != 'casual' AND dev_role IS NULL"
+  ).all(centreId);
+  const update = db.prepare("UPDATE staff SET dev_role = ? WHERE id = ?");
+  let applied = 0;
+  const txn = db.transaction(() => {
+    for (const s of candidates) {
+      const role = suggestDevRole(s.position_title);
+      if (role) { update.run(role, s.id); applied++; }
+    }
+  });
+  txn();
+
+  logAction(req, "staff.dev_role_bulk", `Accepted ${applied} suggested development-role(s)`);
+  setFlash(req, "success", applied ? `Accepted ${applied} suggested role${applied === 1 ? "" : "s"}.` : "No suggestions to apply.");
+  res.redirect(`/development/people${scoped ? "" : "?centre=" + centreId}`);
 });
 
 router.post("/development/people/:id", requireLogin, (req, res) => {

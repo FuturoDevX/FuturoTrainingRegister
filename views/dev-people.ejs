@@ -25,13 +25,28 @@
         <form id="person-<%= s.id %>" method="POST" action="/development/people/<%= s.id %><%= isAdmin ? '?centre=' + workingCentreId : '' %>"></form>
       <% }) %>
 
-      <div class="table-scroll">
+      <div data-filterable>
+        <div class="toolbar">
+          <div class="search">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" data-filter-search placeholder="Search people…">
+          </div>
+          <% if (suggestedCount > 0) { %>
+            <form method="POST" action="/development/people/accept-suggested<%= isAdmin ? '?centre=' + workingCentreId : '' %>" class="inline">
+              <button type="submit" class="button btn-outline">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                Accept all <%= suggestedCount %> suggested role<%= suggestedCount === 1 ? '' : 's' %>
+              </button>
+            </form>
+          <% } %>
+        </div>
+        <div class="table-scroll">
         <table>
           <thead><tr><th>Name</th><th>EH job title</th><th>Development role</th><th>Room</th><th class="sticky-col">Save</th></tr></thead>
           <tbody>
             <% staff.forEach(function(s) { %>
               <% var effectiveRole = s.dev_role || s.suggested || ""; %>
-              <tr>
+              <tr data-search="<%= (s.full_name + ' ' + (s.position_title || '')).toLowerCase() %>">
                 <td><%= s.full_name %></td>
                 <td class="muted"><%= s.position_title || "—" %></td>
                 <td>
@@ -59,10 +74,13 @@
             <% if (staff.length === 0) { %>
               <tr><td colspan="5" class="muted">No active staff at <%= workingCentre.name %>. Run an Employment Hero sync from Admin.</td></tr>
             <% } %>
+            <tr data-empty style="display:none"><td colspan="5" class="muted">No people match your search.</td></tr>
           </tbody>
         </table>
+        </div>
       </div>
     </section>
   </main>
+  <script src="/filter.js"></script>
 </body>
 </html>

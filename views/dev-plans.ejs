@@ -14,12 +14,27 @@
     <section class="card">
       <h2>Development plans — <%= workingCentre.name %></h2>
       <p class="muted">Each person's current IDP at a glance. Start one, or open it to manage SMART goals.</p>
-      <div class="table-scroll">
+      <div data-filterable>
+        <div class="toolbar">
+          <div class="search">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" data-filter-search placeholder="Search people…">
+          </div>
+          <select class="filter-select" data-filter-status>
+            <option value="">All statuses</option>
+            <option value="active">Active</option>
+            <option value="draft">Draft</option>
+            <option value="completed">Completed</option>
+            <option value="none">No IDP</option>
+            <option value="overdue">Overdue review</option>
+          </select>
+        </div>
+        <div class="table-scroll">
         <table>
           <thead><tr><th>Name</th><th>Role</th><th>Room</th><th>IDP status</th><th>Goals</th><th>Next review</th><th class="sticky-col"></th></tr></thead>
           <tbody>
             <% rows.forEach(function(row) { %>
-              <tr>
+              <tr data-search="<%= (row.full_name + ' ' + (row.role_label || '')).toLowerCase() %>" data-status="<%= row.idp_id ? row.idp_status : 'none' %>" data-overdue="<%= row.overdue ? '1' : '0' %>">
                 <td><%= row.full_name %></td>
                 <td><%= row.role_label || "—" %></td>
                 <td><%= row.room_name || "—" %></td>
@@ -50,10 +65,13 @@
             <% if (rows.length === 0) { %>
               <tr><td colspan="7" class="muted">No active staff at <%= workingCentre.name %>.</td></tr>
             <% } %>
+            <tr data-empty style="display:none"><td colspan="7" class="muted">No people match your filters.</td></tr>
           </tbody>
         </table>
+        </div>
       </div>
     </section>
   </main>
+  <script src="/filter.js"></script>
 </body>
 </html>

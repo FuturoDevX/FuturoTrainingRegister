@@ -173,6 +173,13 @@ body {
 .sync-err { color: var(--error); flex: none; margin-top: 0.1rem; }
 .sync-line { font-weight: 600; }
 
+/* Search / filter toolbars (People, Plans) */
+.toolbar { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap; }
+.search { position: relative; flex: 1; min-width: 12rem; max-width: 20rem; }
+.search svg { position: absolute; left: 0.6rem; top: 50%; transform: translateY(-50%); color: #889; pointer-events: none; }
+.search input { width: 100%; border: 1px solid var(--border); border-radius: 6px; padding: 0.5rem 0.6rem 0.5rem 2rem; font: inherit; font-size: 0.9rem; }
+.filter-select { font: inherit; font-size: 0.9rem; padding: 0.5rem 0.6rem; border: 1px solid var(--border); border-radius: 6px; background: white; color: #445; }
+
 @media (max-width: 640px) {
   .attn-grid, .home-top { grid-template-columns: 1fr; }
 }
