@@ -1,0 +1,67 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Home — Futuro Training Tracker</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <%- include("partials/header", { user }) %>
+  <main class="container">
+    <h1>Organisation — Home</h1>
+    <p class="muted">Development plans and roster health across all centres.</p>
+
+    <div class="home-top">
+      <section class="card">
+        <h2>IDP coverage</h2>
+        <div class="cov-big"><%= org.coverage %>%</div>
+        <div class="muted"><%= org.total %> permanent staff · <%= org.active %> with an active plan</div>
+        <div class="coverage" style="margin-top: 1rem;"><div class="coverage-bar" style="width: <%= org.coverage %>%"></div></div>
+      </section>
+
+      <section class="card">
+        <h2>Employment Hero sync</h2>
+        <% if (!lastSync) { %>
+          <p class="muted">No sync has run yet.</p>
+        <% } else { %>
+          <div class="sync">
+            <% if (lastSync.status === "success") { %>
+              <svg class="sync-ok" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            <% } else { %>
+              <svg class="sync-err" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <% } %>
+            <div>
+              <div class="sync-line"><%= lastSync.status === "success" ? "Last sync succeeded" : "Last sync failed" %></div>
+              <div class="muted" style="font-size: 0.88rem;"><%= lastSync.run_at %> · <%= lastSync.detail %></div>
+            </div>
+          </div>
+        <% } %>
+        <form method="POST" action="/admin/sync" style="margin-top: 0.9rem;"><button type="submit">Run sync now</button></form>
+      </section>
+    </div>
+
+    <section class="card">
+      <h2>By centre</h2>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Centre</th><th>IDP coverage</th><th>Active</th><th>No IDP</th><th>Staff</th></tr></thead>
+          <tbody>
+            <% centres.forEach(function(c) { %>
+              <tr>
+                <td><a href="/report/idp/centre/<%= c.id %>"><%= c.name %></a></td>
+                <td>
+                  <div class="coverage"><div class="coverage-bar <%= c.pct < 30 ? 'cov-low' : '' %>" style="width: <%= c.pct %>%"></div><span class="coverage-pct"><%= c.pct %>%</span></div>
+                </td>
+                <td><%= c.active %></td>
+                <td><%= c.none_count %></td>
+                <td><%= c.total %></td>
+              </tr>
+            <% }) %>
+            <% if (centres.length === 0) { %><tr><td colspan="5" class="muted">No staff yet — run a sync.</td></tr><% } %>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

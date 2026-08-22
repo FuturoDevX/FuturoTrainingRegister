@@ -29,7 +29,7 @@ router.post("/login", (req, res) => {
     location_id: user.location_id,
   };
   logEvent(user.email, user.role, "auth.login_success", `Logged in from ${req.ip}`);
-  res.redirect("/training");
+  res.redirect("/home");
 });
 
 router.post("/logout", (req, res) => {

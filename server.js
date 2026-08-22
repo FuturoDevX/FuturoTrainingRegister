@@ -11,6 +11,7 @@ const { flashMiddleware } = require("./middleware/flash");
 const { logAction } = require("./services/audit");
 
 const authRoutes = require("./routes/auth");
+const homeRoutes = require("./routes/home");
 const trainingRoutes = require("./routes/training");
 const developmentRoutes = require("./routes/development");
 const reportRoutes = require("./routes/report");
@@ -39,9 +40,10 @@ app.use(
 
 app.use(flashMiddleware);
 
-app.get("/", (req, res) => res.redirect(req.session.user ? "/training" : "/login"));
+app.get("/", (req, res) => res.redirect(req.session.user ? "/home" : "/login"));
 
 app.use(authRoutes);
+app.use(homeRoutes);
 app.use(trainingRoutes);
 app.use(developmentRoutes);
 app.use(reportRoutes);
