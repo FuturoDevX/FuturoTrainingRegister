@@ -1,0 +1,51 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>IDP Report — Futuro Training Tracker</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <%- include("partials/header", { user }) %>
+  <main class="container">
+    <h1>Reports</h1>
+    <%- include("partials/report-tabs", { activeTab }) %>
+
+    <section class="card">
+      <h2>Development plans — whole organisation</h2>
+      <div class="stat-row">
+        <div class="stat"><div class="stat-num"><%= org.pct %>%</div><div class="stat-label">have an active IDP</div></div>
+        <div class="stat"><div class="stat-num"><%= org.active %></div><div class="stat-label">active</div></div>
+        <div class="stat"><div class="stat-num"><%= org.total %></div><div class="stat-label">active staff</div></div>
+        <div class="stat"><div class="stat-num"><%= org.none_count %></div><div class="stat-label">no IDP</div></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>By centre</h2>
+      <p class="muted">Click a centre to drill down by room.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Centre</th><th>Coverage</th><th>Active</th><th>Draft</th><th>Completed</th><th>No IDP</th><th>Staff</th></tr></thead>
+          <tbody>
+            <% centres.forEach(function(c) { %>
+              <tr>
+                <td><a href="/report/idp/centre/<%= c.group_id %>"><%= c.group_name %></a></td>
+                <td>
+                  <div class="coverage"><div class="coverage-bar" style="width: <%= c.pct %>%"></div><span class="coverage-pct"><%= c.pct %>%</span></div>
+                </td>
+                <td><%= c.active %></td>
+                <td><%= c.draft %></td>
+                <td><%= c.completed %></td>
+                <td><%= c.none_count %></td>
+                <td><%= c.total %></td>
+              </tr>
+            <% }) %>
+            <% if (centres.length === 0) { %><tr><td colspan="7" class="muted">No staff yet.</td></tr><% } %>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

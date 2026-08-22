@@ -9,6 +9,7 @@
   <%- include("partials/header", { user }) %>
   <main class="container">
     <h1>Reports</h1>
+    <%- include("partials/report-tabs", { activeTab }) %>
     <p class="muted">Pick a centre to see its staff and training hours.</p>
     <ul class="link-list">
       <% locations.forEach(function(l) { %>

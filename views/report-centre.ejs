@@ -8,9 +8,11 @@
 <body>
   <%- include("partials/header", { user }) %>
   <main class="container">
+    <h1>Reports</h1>
+    <%- include("partials/report-tabs", { activeTab }) %>
     <% if (user.role === "admin") { %><p><a href="/report">&larr; All centres</a></p><% } %>
     <div class="row-between">
-      <h1><%= location.name %> — Training Report</h1>
+      <h2><%= location.name %> — Training</h2>
       <a class="button" href="/report/centre/<%= location.id %>.csv">Export CSV</a>
     </div>
 

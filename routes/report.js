@@ -12,13 +12,67 @@ function staffHours(staffId) {
   `).get(staffId).total;
 }
 
+// IDP coverage aggregates. `groupExpr` groups rows (by centre or by room); each row's
+// counts are based on that person's CURRENT (latest) IDP status, plus a "none" bucket for
+// people with no IDP at all. Returns rows with a computed coverage % (active / total).
+function idpAggregate(groupExpr, joinAndWhere, params) {
+  const rows = db.prepare(`
+    SELECT ${groupExpr} AS group_id, ${groupExpr === "l.id" ? "l.name" : "COALESCE(r.name, '(no room)')"} AS group_name,
+      COUNT(s.id) AS total,
+      SUM(CASE WHEN cur.status = 'active' THEN 1 ELSE 0 END) AS active,
+      SUM(CASE WHEN cur.status = 'draft' THEN 1 ELSE 0 END) AS draft,
+      SUM(CASE WHEN cur.status = 'completed' THEN 1 ELSE 0 END) AS completed,
+      SUM(CASE WHEN cur.id IS NULL THEN 1 ELSE 0 END) AS none_count
+    FROM staff s
+    ${joinAndWhere}
+    LEFT JOIN idps cur ON cur.id = (SELECT id FROM idps WHERE staff_id = s.id ORDER BY created_at DESC, id DESC LIMIT 1)
+    WHERE s.status = 'active' ${params.extraWhere || ""}
+    GROUP BY ${groupExpr}
+    ORDER BY group_name
+  `).all(...(params.args || []));
+  for (const row of rows) row.pct = row.total ? Math.round((row.active / row.total) * 100) : 0;
+  return rows;
+}
+
+function sumTotals(rows) {
+  const t = { total: 0, active: 0, draft: 0, completed: 0, none_count: 0 };
+  for (const r of rows) { t.total += r.total; t.active += r.active; t.draft += r.draft; t.completed += r.completed; t.none_count += r.none_count; }
+  t.pct = t.total ? Math.round((t.active / t.total) * 100) : 0;
+  return t;
+}
+
+// Org-level IDP dashboard (Admin: all centres; CM: straight to their own centre).
+router.get("/report/idp", requireLogin, (req, res) => {
+  const scoped = scopedLocationId(req);
+  if (scoped) return res.redirect(`/report/idp/centre/${scoped}`);
+
+  const centres = idpAggregate("l.id", "JOIN locations l ON l.id = s.location_id", { extraWhere: "AND l.name != 'Other/HQ'" });
+  const org = sumTotals(centres);
+  res.render("report-idp", { centres, org, activeTab: "idp" });
+});
+
+// Centre-level IDP dashboard — broken down by room.
+router.get("/report/idp/centre/:id", requireLogin, (req, res) => {
+  const locationId = parseInt(req.params.id, 10);
+  const scoped = scopedLocationId(req);
+  if (scoped && scoped !== locationId) {
+    return res.status(403).render("error", { message: "You can only view your own centre's report." });
+  }
+  const location = db.prepare("SELECT * FROM locations WHERE id = ?").get(locationId);
+  if (!location) return res.status(404).render("error", { message: "Centre not found." });
+
+  const rooms = idpAggregate("r.id", "LEFT JOIN rooms r ON r.id = s.room_id", { extraWhere: "AND s.location_id = ?", args: [locationId] });
+  const centre = sumTotals(rooms);
+  res.render("report-idp-centre", { location, rooms, centre, isAdmin: !scoped, activeTab: "idp" });
+});
+
 // Centre picker (Admin only — a Centre Manager is redirected straight to their own centre).
 router.get("/report", requireLogin, (req, res) => {
   const locationId = scopedLocationId(req);
   if (locationId) return res.redirect(`/report/centre/${locationId}`);
 
   const locations = db.prepare("SELECT * FROM locations ORDER BY name").all();
-  res.render("report-centre-picker", { locations });
+  res.render("report-centre-picker", { locations, activeTab: "training" });
 });
 
 // Registered before the plain ":id" route below — Express matches routes in registration
@@ -63,7 +117,7 @@ router.get("/report/centre/:id", requireLogin, (req, res) => {
     `).get(s.id).c,
   }));
 
-  res.render("report-centre", { location, rows });
+  res.render("report-centre", { location, rows, activeTab: "training" });
 });
 
 router.get("/report/person/:id", requireLogin, (req, res) => {
