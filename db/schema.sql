@@ -89,3 +89,34 @@ CREATE TABLE IF NOT EXISTS audit_log (
   action TEXT NOT NULL,               -- short label, e.g. 'session.create'
   detail TEXT
 );
+
+-- ==========================================================================
+-- Phase 2: Individual Development Plans (IDPs)
+-- Adds structure the training side didn't need: rooms within a centre, a
+-- development-role per person (Ed/RL/EL/ACM/CM), and org-level role holders.
+-- Together these let the "who supports this person's development" chain be
+-- derived automatically rather than entered per IDP. See services/responsibility.js.
+-- (The staff.room_id and staff.dev_role columns are added in db/migrate.js.)
+-- ==========================================================================
+
+-- Rooms within a centre. Each room designates its Room Leader and Educational
+-- Leader (both staff members); an educator's RL/EL are derived from their room.
+CREATE TABLE IF NOT EXISTS rooms (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  location_id INTEGER NOT NULL REFERENCES locations(id),
+  name TEXT NOT NULL,
+  room_leader_staff_id INTEGER REFERENCES staff(id),
+  ed_leader_staff_id INTEGER REFERENCES staff(id),
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(location_id, name)
+);
+
+-- Org-wide role holders that aren't centre-scoped (Operations Manager, General
+-- Manager, Quality & Compliance) — one designated staff member each, set by Admin.
+-- These sit at the top of several responsibility chains (e.g. a CM's supporters
+-- are OM + GM). role is the key so there's exactly one holder per role.
+CREATE TABLE IF NOT EXISTS org_roles (
+  role TEXT PRIMARY KEY CHECK (role IN ('om','gm','qc')),
+  staff_id INTEGER REFERENCES staff(id),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);

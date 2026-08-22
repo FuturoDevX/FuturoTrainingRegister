@@ -12,6 +12,7 @@ const { logAction } = require("./services/audit");
 
 const authRoutes = require("./routes/auth");
 const trainingRoutes = require("./routes/training");
+const developmentRoutes = require("./routes/development");
 const reportRoutes = require("./routes/report");
 const adminRoutes = require("./routes/admin");
 
@@ -42,6 +43,7 @@ app.get("/", (req, res) => res.redirect(req.session.user ? "/training" : "/login
 
 app.use(authRoutes);
 app.use(trainingRoutes);
+app.use(developmentRoutes);
 app.use(reportRoutes);
 app.use(adminRoutes);
 

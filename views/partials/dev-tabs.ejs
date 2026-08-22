@@ -1,0 +1,18 @@
+<nav class="admin-tabs">
+  <a href="/development/rooms<%= isAdmin ? '?centre=' + workingCentreId : '' %>" class="<%= activeTab === 'rooms' ? 'active' : '' %>">Rooms</a>
+  <a href="/development/people<%= isAdmin ? '?centre=' + workingCentreId : '' %>" class="<%= activeTab === 'people' ? 'active' : '' %>">People</a>
+</nav>
+
+<% if (isAdmin) { %>
+  <form method="GET" class="centre-switcher">
+    <label>Centre
+      <select name="centre" onchange="this.form.submit()">
+        <% centres.forEach(function(c) { %>
+          <option value="<%= c.id %>" <%= c.id === workingCentreId ? "selected" : "" %>><%= c.name %></option>
+        <% }) %>
+      </select>
+    </label>
+  </form>
+<% } else { %>
+  <p class="muted">Showing <%= workingCentre.name %>.</p>
+<% } %>

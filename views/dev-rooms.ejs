@@ -1,0 +1,63 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Development — Rooms — Futuro Training Tracker</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <%- include("partials/header", { user }) %>
+  <main class="container">
+    <h1>Development</h1>
+    <%- include("partials/dev-tabs", { activeTab, isAdmin, centres, workingCentreId, workingCentre }) %>
+
+    <section class="card">
+      <h2>Rooms at <%= workingCentre.name %></h2>
+      <p class="muted">Each room's Room Leader and Educational Leader flow through to the development plans of everyone in that room.</p>
+
+      <% if (rooms.length === 0) { %>
+        <p class="muted">No rooms yet at <%= workingCentre.name %>.</p>
+      <% } %>
+
+      <% rooms.forEach(function(r) { %>
+        <div class="room-card">
+          <div class="room-card-head">
+            <strong><%= r.name %></strong>
+            <span class="muted"><%= r.staff_count %> staff</span>
+          </div>
+          <form method="POST" action="/development/rooms/<%= r.id %>" class="room-leaders">
+            <label>Room Leader
+              <select name="room_leader_staff_id">
+                <option value="">— not set —</option>
+                <% centreStaff.forEach(function(s) { %>
+                  <option value="<%= s.id %>" <%= s.id === r.room_leader_staff_id ? "selected" : "" %>><%= s.full_name %></option>
+                <% }) %>
+              </select>
+            </label>
+            <label>Educational Leader
+              <select name="ed_leader_staff_id">
+                <option value="">— not set —</option>
+                <% centreStaff.forEach(function(s) { %>
+                  <option value="<%= s.id %>" <%= s.id === r.ed_leader_staff_id ? "selected" : "" %>><%= s.full_name %></option>
+                <% }) %>
+              </select>
+            </label>
+            <button type="submit">Save</button>
+          </form>
+          <form method="POST" action="/development/rooms/<%= r.id %>/delete" class="inline" onsubmit="return confirm('Delete this room? Staff in it will be left without a room (nothing else is lost).');">
+            <button type="submit" class="link-btn danger">Delete room</button>
+          </form>
+        </div>
+      <% }) %>
+
+      <details <%= rooms.length === 0 ? "open" : "" %>>
+        <summary>+ New room</summary>
+        <form method="POST" action="/development/rooms<%= isAdmin ? '?centre=' + workingCentreId : '' %>" class="form-grid">
+          <label>Room name<input type="text" name="name" required placeholder="e.g. Room 3, Toddlers, Nursery"></label>
+          <button type="submit">Create room</button>
+        </form>
+      </details>
+    </section>
+  </main>
+</body>
+</html>

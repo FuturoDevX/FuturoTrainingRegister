@@ -3,6 +3,7 @@
   <% if (typeof user !== "undefined" && user) { %>
     <nav>
       <a href="/training">Sessions</a>
+      <a href="/development">Development</a>
       <a href="/report">Reports</a>
       <% if (user.role === "admin") { %><a href="/admin">Admin</a><% } %>
       <span class="who"><%= user.full_name %></span>

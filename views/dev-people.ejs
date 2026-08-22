@@ -1,0 +1,68 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Development — People — Futuro Training Tracker</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <%- include("partials/header", { user }) %>
+  <main class="container">
+    <h1>Development</h1>
+    <%- include("partials/dev-tabs", { activeTab, isAdmin, centres, workingCentreId, workingCentre }) %>
+
+    <section class="card">
+      <h2>People at <%= workingCentre.name %></h2>
+      <p class="muted">
+        Set each person's development-role and room. The role is auto-suggested from their
+        Employment Hero job title — accept it with Save, or change it first. Roles marked
+        <span class="suggest-tag">suggested</span> aren't saved yet.
+      </p>
+
+      <%# Per-row forms declared up front; the row inputs below reference them by id. This
+          is the valid way to have one form per table row (a <form> can't wrap a <tr>). %>
+      <% staff.forEach(function(s) { %>
+        <form id="person-<%= s.id %>" method="POST" action="/development/people/<%= s.id %><%= isAdmin ? '?centre=' + workingCentreId : '' %>"></form>
+      <% }) %>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Name</th><th>EH job title</th><th>Development role</th><th>Room</th><th class="sticky-col">Save</th></tr></thead>
+          <tbody>
+            <% staff.forEach(function(s) { %>
+              <% var effectiveRole = s.dev_role || s.suggested || ""; %>
+              <tr>
+                <td><%= s.full_name %></td>
+                <td class="muted"><%= s.position_title || "—" %></td>
+                <td>
+                  <select name="dev_role" form="person-<%= s.id %>">
+                    <option value="">— not set —</option>
+                    <% roleOptions.forEach(function(ro) { %>
+                      <option value="<%= ro.key %>" <%= effectiveRole === ro.key ? "selected" : "" %>><%= ro.label %></option>
+                    <% }) %>
+                  </select>
+                  <% if (!s.dev_role && s.suggested) { %><span class="suggest-tag">suggested</span><% } %>
+                </td>
+                <td>
+                  <select name="room_id" form="person-<%= s.id %>">
+                    <option value="">— none —</option>
+                    <% rooms.forEach(function(r) { %>
+                      <option value="<%= r.id %>" <%= r.id === s.room_id ? "selected" : "" %>><%= r.name %></option>
+                    <% }) %>
+                  </select>
+                </td>
+                <td class="sticky-col">
+                  <button type="submit" form="person-<%= s.id %>" class="icon-link" title="Save" aria-label="Save">✓</button>
+                </td>
+              </tr>
+            <% }) %>
+            <% if (staff.length === 0) { %>
+              <tr><td colspan="5" class="muted">No active staff at <%= workingCentre.name %>. Run an Employment Hero sync from Admin.</td></tr>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

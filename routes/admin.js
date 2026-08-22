@@ -171,4 +171,39 @@ router.get("/admin/audit", (req, res) => {
   res.render("admin-audit", { entries, activeTab: "audit" });
 });
 
+// Org-wide role holders (Operations Manager, General Manager, Quality & Compliance) that
+// sit at the top of the IDP responsibility chains. One staff member each, org-wide, so
+// the picker isn't centre-scoped. See services/responsibility.js for how these are used.
+const ORG_ROLE_DEFS = [
+  { key: "om", label: "Operations Manager" },
+  { key: "gm", label: "General Manager" },
+  { key: "qc", label: "Quality & Compliance" },
+];
+
+router.get("/admin/org-roles", (req, res) => {
+  const holders = {};
+  for (const { key } of ORG_ROLE_DEFS) {
+    holders[key] = db.prepare("SELECT staff_id FROM org_roles WHERE role = ?").get(key)?.staff_id || null;
+  }
+  const staff = db.prepare("SELECT s.id, s.full_name, s.position_title, l.name AS location_name FROM staff s LEFT JOIN locations l ON l.id = s.location_id WHERE s.status = 'active' ORDER BY s.full_name").all();
+  res.render("admin-org-roles", { orgRoleDefs: ORG_ROLE_DEFS, holders, staff, activeTab: "org-roles" });
+});
+
+router.post("/admin/org-roles", (req, res) => {
+  const upsert = db.prepare(`
+    INSERT INTO org_roles (role, staff_id, updated_at) VALUES (?, ?, datetime('now'))
+    ON CONFLICT(role) DO UPDATE SET staff_id = excluded.staff_id, updated_at = datetime('now')
+  `);
+  const txn = db.transaction(() => {
+    for (const { key } of ORG_ROLE_DEFS) {
+      const staffId = req.body[key] ? parseInt(req.body[key], 10) : null;
+      upsert.run(key, staffId);
+    }
+  });
+  txn();
+  logAction(req, "org_roles.update", "Updated org-wide role holders (OM/GM/Q&C)");
+  setFlash(req, "success", "Org roles updated.");
+  res.redirect("/admin/org-roles");
+});
+
 module.exports = router;
