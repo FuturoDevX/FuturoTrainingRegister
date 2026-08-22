@@ -37,3 +37,18 @@ if (!staffCols.includes("dev_role")) {
   db.exec("ALTER TABLE staff ADD COLUMN dev_role TEXT"); // 'ed','rl','el','acm','cm' or NULL until set
   console.log("Migrated: added staff.dev_role");
 }
+// employment_type distinguishes casuals (who are excluded from IDPs/IDP reporting, though
+// still included in training) from permanent staff. Derived from EH PayRateTemplate on sync.
+if (!staffCols.includes("employment_type")) {
+  db.exec("ALTER TABLE staff ADD COLUMN employment_type TEXT");
+  console.log("Migrated: added staff.employment_type");
+}
+
+// idp_goals.resources — added after idp_goals shipped, so existing databases (which
+// already created the table via schema.sql) need the column patched in. schema.sql also
+// carries it now for fresh databases; PRAGMA guards this from running twice.
+const goalCols = db.prepare("PRAGMA table_info(idp_goals)").all().map((c) => c.name);
+if (goalCols.length && !goalCols.includes("resources")) {
+  db.exec("ALTER TABLE idp_goals ADD COLUMN resources TEXT");
+  console.log("Migrated: added idp_goals.resources");
+}

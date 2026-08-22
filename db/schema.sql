@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS staff (
   email TEXT NOT NULL,
   location_id INTEGER REFERENCES locations(id),
   position_title TEXT,
+  employment_type TEXT,               -- 'permanent' | 'casual' | NULL (unknown); from EH PayRateTemplate
   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','archived')),
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -156,6 +157,7 @@ CREATE TABLE IF NOT EXISTS idp_goals (
   nqs_element_code TEXT,               -- optional, e.g. '1.3.1'
   status TEXT NOT NULL DEFAULT 'not_started' CHECK (status IN ('not_started','in_progress','achieved','dropped')),
   progress_notes TEXT,
+  resources TEXT,                      -- resources used or that could be used for this goal
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );

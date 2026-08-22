@@ -116,10 +116,12 @@ router.post("/development/rooms/:id/delete", requireLogin, (req, res) => {
 // ---- People (dev-role + room assignment) ----------------------------------
 router.get("/development/people", requireLogin, (req, res) => {
   const ctx = centreContext(req, "people");
+  // Casuals are excluded from the whole development side (they don't get IDPs), though
+  // they remain fully in the training side. IFNULL keeps not-yet-classified staff visible.
   const staff = db.prepare(`
     SELECT s.*, r.name AS room_name
     FROM staff s LEFT JOIN rooms r ON r.id = s.room_id
-    WHERE s.location_id = ? AND s.status = 'active'
+    WHERE s.location_id = ? AND s.status = 'active' AND IFNULL(s.employment_type, '') != 'casual'
     ORDER BY s.full_name
   `).all(ctx.workingCentreId);
   // Attach an auto-suggested dev_role for anyone not yet classified, so the CM sees a
@@ -153,7 +155,7 @@ router.get("/development/plans", requireLogin, (req, res) => {
     FROM staff s
     LEFT JOIN rooms r ON r.id = s.room_id
     LEFT JOIN idps i ON i.id = (SELECT id FROM idps WHERE staff_id = s.id ORDER BY created_at DESC, id DESC LIMIT 1)
-    WHERE s.location_id = ? AND s.status = 'active'
+    WHERE s.location_id = ? AND s.status = 'active' AND IFNULL(s.employment_type, '') != 'casual'
     ORDER BY s.full_name
   `).all(ctx.workingCentreId);
   const today = new Date().toISOString().slice(0, 10);
@@ -201,6 +203,10 @@ router.post("/development/idp/:staffId/create", requireLogin, (req, res) => {
   const person = db.prepare("SELECT * FROM staff WHERE id = ?").get(req.params.staffId);
   if (!person) return res.status(404).render("error", { message: "Staff member not found." });
   if (!canManagePerson(req, person)) return res.status(403).render("error", { message: "You can only manage your own centre's staff." });
+  if (person.employment_type === "casual") {
+    setFlash(req, "error", `${person.full_name} is casual — IDPs don't apply to casual staff.`);
+    return res.redirect("/development/plans");
+  }
 
   // One living IDP at a time: if the latest isn't completed, just open it rather than
   // creating a duplicate.
@@ -254,9 +260,9 @@ router.post("/development/idp/:id/goals", requireLogin, (req, res) => {
   }
   const nqsCode = req.body.nqs_element_code && nqs.isValidElementCode(req.body.nqs_element_code) ? req.body.nqs_element_code : null;
   db.prepare(`
-    INSERT INTO idp_goals (idp_id, title, specific, measurable, achievable, relevant, target_date, nqs_element_code)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(idp.id, title, req.body.specific || null, req.body.measurable || null, req.body.achievable || null, req.body.relevant || null, req.body.target_date || null, nqsCode);
+    INSERT INTO idp_goals (idp_id, title, specific, measurable, achievable, relevant, target_date, nqs_element_code, resources)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(idp.id, title, req.body.specific || null, req.body.measurable || null, req.body.achievable || null, req.body.relevant || null, req.body.target_date || null, nqsCode, req.body.resources || null);
   logAction(req, "idp.goal_add", `Added goal "${title}" to ${person.full_name}'s IDP`);
   setFlash(req, "success", `Goal "${title}" added.`);
   res.redirect(`/development/idp/${person.id}`);
@@ -273,10 +279,10 @@ router.post("/development/goals/:id", requireLogin, (req, res) => {
   const nqsCode = req.body.nqs_element_code && nqs.isValidElementCode(req.body.nqs_element_code) ? req.body.nqs_element_code : null;
   db.prepare(`
     UPDATE idp_goals SET title = ?, specific = ?, measurable = ?, achievable = ?, relevant = ?,
-      target_date = ?, nqs_element_code = ?, status = ?, progress_notes = ?, updated_at = datetime('now')
+      target_date = ?, nqs_element_code = ?, status = ?, progress_notes = ?, resources = ?, updated_at = datetime('now')
     WHERE id = ?
   `).run(req.body.title || goal.title, req.body.specific || null, req.body.measurable || null, req.body.achievable || null,
-    req.body.relevant || null, req.body.target_date || null, nqsCode, status, req.body.progress_notes || null, goal.id);
+    req.body.relevant || null, req.body.target_date || null, nqsCode, status, req.body.progress_notes || null, req.body.resources || null, goal.id);
   logAction(req, "idp.goal_update", `Updated goal "${goal.title}" (${status}) on ${person.full_name}'s IDP`);
   setFlash(req, "success", "Goal updated.");
   res.redirect(`/development/idp/${person.id}`);

@@ -1,0 +1,48 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title><%= location.name %> / <%= roomLabel %> — IDP Report</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <%- include("partials/header", { user }) %>
+  <main class="container">
+    <h1>Reports</h1>
+    <%- include("partials/report-tabs", { activeTab }) %>
+    <p><a href="/report/idp/centre/<%= location.id %>">&larr; <%= location.name %> by room</a></p>
+
+    <%
+      var goalStatusLabel = { not_started: "Not started", in_progress: "In progress", achieved: "Achieved", dropped: "Dropped" };
+    %>
+    <section class="card">
+      <h2><%= location.name %> — <%= roomLabel %></h2>
+      <p class="muted">Educators in this room and their development plan status. Click a name for their full report.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Name</th><th>Role</th><th>IDP status</th><th>Goals</th><th>Next review</th><th class="sticky-col"></th></tr></thead>
+          <tbody>
+            <% people.forEach(function(p) { %>
+              <tr>
+                <td><%= p.full_name %></td>
+                <td><%= p.role_label || "—" %></td>
+                <td>
+                  <% if (!p.idp_status) { %><span class="muted">No IDP</span>
+                  <% } else { %><span class="badge status-<%= p.idp_status %>"><%= p.idp_status %></span><% } %>
+                </td>
+                <td><%= p.idp_status ? p.goal_count : "—" %></td>
+                <td>
+                  <% if (p.review_date) { %><%= p.review_date %><% if (p.overdue) { %> <span class="badge overdue">overdue</span><% } %>
+                  <% } else { %>—<% } %>
+                </td>
+                <td class="sticky-col"><a href="/report/person/<%= p.id %>">Report</a></td>
+              </tr>
+            <% }) %>
+            <% if (people.length === 0) { %><tr><td colspan="6" class="muted">No educators in this room.</td></tr><% } %>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

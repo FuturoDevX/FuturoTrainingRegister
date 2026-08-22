@@ -58,7 +58,7 @@ async function fetchEmployeeDetails() {
   const params = new URLSearchParams();
   params.append("includeActive", "true");
   params.append("includeInactive", "true");
-  ["EmployeeId", "FirstName", "Surname", "Email", "PrimaryLocation", "JobTitle", "TerminationDate"]
+  ["EmployeeId", "FirstName", "Surname", "Email", "PrimaryLocation", "JobTitle", "TerminationDate", "PayRateTemplate"]
     .forEach((col) => params.append("selectedColumns", col));
 
   const url = `${EH_BASE_URL}/api/v2/business/${EH_BUSINESS_ID}/report/employeedetails?${params.toString()}`;
@@ -72,20 +72,35 @@ async function fetchEmployeeDetails() {
   return records.filter((r) => !looksLikeHeaderRow(r));
 }
 
+// Derive permanent/casual from the PayRateTemplate string — the reliable signal (validated
+// in PMS-App), e.g. "Permanent CSE Level 5..." vs "Casual CSE Level 5...". Returns null
+// when neither word is present, so the caller can leave it unknown rather than guess (an
+// unknown is treated as NOT casual — better to include than to wrongly hide from IDPs).
+function classifyEmployment(payRateTemplate) {
+  const t = payRateTemplate || "";
+  if (/casual/i.test(t)) return "casual";
+  if (/permanent/i.test(t)) return "permanent";
+  return null;
+}
+
 function upsertStaff(record) {
   const locationName = mapLocation(record.PrimaryLocation);
   const location = db.prepare("SELECT id FROM locations WHERE name = ?").get(locationName);
   const status = record.TerminationDate ? "archived" : "active";
   const fullName = [record.FirstName, record.Surname].filter(Boolean).join(" ");
+  const employmentType = classifyEmployment(record.PayRateTemplate);
 
+  // employment_type uses COALESCE(excluded, existing) so a sync that can't classify someone
+  // (null) never wipes a value a previous sync already resolved.
   db.prepare(`
-    INSERT INTO staff (employee_id, full_name, email, location_id, position_title, status)
-    VALUES (@employee_id, @full_name, @email, @location_id, @position_title, @status)
+    INSERT INTO staff (employee_id, full_name, email, location_id, position_title, employment_type, status)
+    VALUES (@employee_id, @full_name, @email, @location_id, @position_title, @employment_type, @status)
     ON CONFLICT(employee_id) DO UPDATE SET
       full_name = excluded.full_name,
       email = excluded.email,
       location_id = excluded.location_id,
       position_title = excluded.position_title,
+      employment_type = COALESCE(excluded.employment_type, staff.employment_type),
       status = excluded.status,
       updated_at = datetime('now')
   `).run({
@@ -94,6 +109,7 @@ function upsertStaff(record) {
     email: record.Email || "",
     location_id: location ? location.id : null,
     position_title: record.JobTitle || null,
+    employment_type: employmentType,
     status,
   });
 

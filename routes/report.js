@@ -2,6 +2,7 @@ const express = require("express");
 const db = require("../db/db");
 const { requireLogin, scopedLocationId } = require("../middleware/auth");
 const nqs = require("../services/nqs");
+const { ROLE_LABEL } = require("../services/devRole");
 
 const router = express.Router();
 
@@ -26,7 +27,7 @@ function idpAggregate(groupExpr, joinAndWhere, params) {
     FROM staff s
     ${joinAndWhere}
     LEFT JOIN idps cur ON cur.id = (SELECT id FROM idps WHERE staff_id = s.id ORDER BY created_at DESC, id DESC LIMIT 1)
-    WHERE s.status = 'active' ${params.extraWhere || ""}
+    WHERE s.status = 'active' AND IFNULL(s.employment_type, '') != 'casual' ${params.extraWhere || ""}
     GROUP BY ${groupExpr}
     ORDER BY group_name
   `).all(...(params.args || []));
@@ -64,6 +65,45 @@ router.get("/report/idp/centre/:id", requireLogin, (req, res) => {
   const rooms = idpAggregate("r.id", "LEFT JOIN rooms r ON r.id = s.room_id", { extraWhere: "AND s.location_id = ?", args: [locationId] });
   const centre = sumTotals(rooms);
   res.render("report-idp-centre", { location, rooms, centre, isAdmin: !scoped, activeTab: "idp" });
+});
+
+// Room-level drill-down — the individual educators in one room, each with their IDP
+// status and a link through to their full report. roomId of "none" is the unassigned bucket.
+router.get("/report/idp/centre/:id/room/:roomId", requireLogin, (req, res) => {
+  const locationId = parseInt(req.params.id, 10);
+  const scoped = scopedLocationId(req);
+  if (scoped && scoped !== locationId) {
+    return res.status(403).render("error", { message: "You can only view your own centre's report." });
+  }
+  const location = db.prepare("SELECT * FROM locations WHERE id = ?").get(locationId);
+  if (!location) return res.status(404).render("error", { message: "Centre not found." });
+
+  let room = null, roomFilter, args;
+  if (req.params.roomId === "none") {
+    roomFilter = "AND s.room_id IS NULL";
+    args = [locationId];
+  } else {
+    room = db.prepare("SELECT * FROM rooms WHERE id = ? AND location_id = ?").get(parseInt(req.params.roomId, 10), locationId);
+    if (!room) return res.status(404).render("error", { message: "Room not found." });
+    roomFilter = "AND s.room_id = ?";
+    args = [locationId, room.id];
+  }
+
+  const people = db.prepare(`
+    SELECT s.id, s.full_name, s.dev_role,
+      cur.status AS idp_status, cur.review_date,
+      (SELECT COUNT(*) FROM idp_goals g WHERE g.idp_id = cur.id) AS goal_count
+    FROM staff s
+    LEFT JOIN idps cur ON cur.id = (SELECT id FROM idps WHERE staff_id = s.id ORDER BY created_at DESC, id DESC LIMIT 1)
+    WHERE s.location_id = ? AND s.status = 'active' AND IFNULL(s.employment_type, '') != 'casual' ${roomFilter}
+    ORDER BY s.full_name
+  `).all(...args);
+  const today = new Date().toISOString().slice(0, 10);
+  for (const p of people) {
+    p.role_label = p.dev_role ? ROLE_LABEL[p.dev_role] : null;
+    p.overdue = p.idp_status === "active" && p.review_date && p.review_date < today;
+  }
+  res.render("report-idp-room", { location, roomLabel: room ? room.name : "(no room)", people, isAdmin: !scoped, activeTab: "idp" });
 });
 
 // Centre picker (Admin only — a Centre Manager is redirected straight to their own centre).

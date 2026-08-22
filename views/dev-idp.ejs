@@ -28,7 +28,6 @@
         <% if (supporters.derived.slots.length === 0) { %>
           <p class="muted">Set this person's development-role (on the People tab) to see who supports their development.</p>
         <% } else { %>
-          <p class="muted">Derived automatically from their room, centre and the org roles.</p>
           <ul class="supporter-list">
             <% supporters.derived.slots.forEach(function(slot) { %>
               <li>
@@ -113,6 +112,7 @@
                 <% if (g.nqs_element_code) { %><span class="badge nqs-tag" title="<%= nqs.elementLabel(g.nqs_element_code) %>"><%= g.nqs_element_code %></span><% } %>
               </p>
             <% } %>
+            <% if (g.resources) { %><p class="goal-meta"><strong>Resources:</strong> <%= g.resources %></p><% } %>
             <details class="goal-edit">
               <summary>View / edit</summary>
               <form method="POST" action="/development/goals/<%= g.id %>" class="form-grid">
@@ -141,6 +141,7 @@
                     <% }) %>
                   </select>
                 </label>
+                <label class="full">Resources — what was used, or could be used?<textarea name="resources" rows="2" placeholder="e.g. First Aid course, mentoring with RL, ACECQA QA1 guide"><%= g.resources || "" %></textarea></label>
                 <label class="full">Progress notes<textarea name="progress_notes" rows="2"><%= g.progress_notes || "" %></textarea></label>
                 <button type="submit">Save goal</button>
               </form>
@@ -173,6 +174,7 @@
                 <% }) %>
               </select>
             </label>
+            <label class="full">Resources — what was used, or could be used?<textarea name="resources" rows="2" placeholder="e.g. First Aid course, mentoring with RL, ACECQA QA1 guide"></textarea></label>
             <button type="submit" class="full">Add goal</button>
           </form>
         </details>

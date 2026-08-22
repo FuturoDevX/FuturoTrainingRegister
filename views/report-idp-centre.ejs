@@ -30,7 +30,7 @@
           <tbody>
             <% rooms.forEach(function(r) { %>
               <tr>
-                <td><%= r.group_name %></td>
+                <td><a href="/report/idp/centre/<%= location.id %>/room/<%= r.group_id || 'none' %>"><%= r.group_name %></a></td>
                 <td>
                   <div class="coverage"><div class="coverage-bar" style="width: <%= r.pct %>%"></div><span class="coverage-pct"><%= r.pct %>%</span></div>
                 </td>
