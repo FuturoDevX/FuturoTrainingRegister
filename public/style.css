@@ -135,6 +135,16 @@ body {
 .goal-meta { margin: 0.3rem 0 0; }
 .goal-edit summary { margin-top: 0.5rem; font-size: 0.9rem; }
 
+.soft-rule { border: none; border-top: 1px solid var(--border); margin: 1.1rem 0; }
+
+/* IDP progress log timeline */
+.log { list-style: none; padding: 0; margin: 1rem 0 0; }
+.log-entry { padding: 0.6rem 0; border-bottom: 1px solid var(--border); }
+.log-entry:last-child { border-bottom: none; }
+.log-meta { font-size: 0.8rem; color: var(--muted); margin-bottom: 0.2rem; }
+.history-goals { margin: 0.5rem 0 0; padding-left: 1.1rem; }
+.history-goals li { margin-bottom: 0.3rem; }
+
 /* IDP report — stat tiles + coverage bars */
 .stat-row { display: flex; flex-wrap: wrap; gap: 1.5rem; margin-top: 0.5rem; }
 .stat { min-width: 6rem; }

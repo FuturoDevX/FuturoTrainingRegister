@@ -60,41 +60,60 @@
           <h2>Plan</h2>
           <span class="badge status-<%= idp.status %>"><%= idp.status %></span>
         </div>
-        <form method="POST" action="/development/idp/<%= idp.id %>" class="form-grid">
-          <label class="full">Focus (what this plan is about)
-            <textarea name="focus" rows="2" placeholder="e.g. Building confidence leading room programming"><%= idp.focus || "" %></textarea>
-          </label>
-          <label>Status
-            <select name="status">
-              <% ["draft","active","completed"].forEach(function(st) { %>
-                <option value="<%= st %>" <%= idp.status === st ? "selected" : "" %>><%= st.charAt(0).toUpperCase() + st.slice(1) %></option>
-              <% }) %>
-            </select>
-          </label>
-          <label>Next review date
-            <input type="date" name="review_date" value="<%= idp.review_date || "" %>">
-          </label>
-          <label>Supporting leaders
-            <select name="supporters_mode">
-              <option value="auto" <%= idp.supporters_mode === "auto" ? "selected" : "" %>>Automatic (derived)</option>
-              <option value="manual" <%= idp.supporters_mode === "manual" ? "selected" : "" %>>Manual override</option>
-            </select>
-          </label>
-          <div class="full">
-            <details class="nqs-picker" <%= idp.supporters_mode === "manual" ? "open" : "" %>>
-              <summary>Manual supporters (used only when set to Manual override)</summary>
-              <div class="nqs-checklist">
-                <% centreStaff.forEach(function(s) { %>
-                  <label class="nqs-item">
-                    <input type="checkbox" name="supporters" value="<%= s.id %>" <%= manualIds.has(s.id) ? "checked" : "" %>>
-                    <%= s.full_name %>
-                  </label>
-                <% }) %>
-              </div>
-            </details>
+
+        <% if (locked) { %>
+          <p class="muted">Completed <%= idp.completed_at ? idp.completed_at.slice(0,10) : "" %> — locked as a record. Start the next cycle to keep developing, or reopen to correct something.</p>
+          <% if (idp.focus) { %><p><strong>Focus:</strong> <%= idp.focus %></p><% } %>
+          <% if (idp.carried_from_id) { %><p class="muted">Continued from an earlier plan (unfinished goals were carried forward).</p><% } %>
+          <div class="quick-actions">
+            <form method="POST" action="/development/idp/<%= idp.id %>/start-next" class="inline">
+              <button type="submit" class="button">Start next cycle</button>
+            </form>
+            <form method="POST" action="/development/idp/<%= idp.id %>/reopen" class="inline">
+              <button type="submit" class="button btn-outline">Reopen for edits</button>
+            </form>
           </div>
-          <button type="submit" class="full">Save plan</button>
-        </form>
+        <% } else { %>
+          <form method="POST" action="/development/idp/<%= idp.id %>" class="form-grid">
+            <label class="full">Focus (what this plan is about)
+              <textarea name="focus" rows="2" placeholder="e.g. Building confidence leading room programming"><%= idp.focus || "" %></textarea>
+            </label>
+            <label>Status
+              <select name="status">
+                <% ["draft","active"].forEach(function(st) { %>
+                  <option value="<%= st %>" <%= idp.status === st ? "selected" : "" %>><%= st.charAt(0).toUpperCase() + st.slice(1) %></option>
+                <% }) %>
+              </select>
+            </label>
+            <label>Next review date
+              <input type="date" name="review_date" value="<%= idp.review_date || "" %>">
+            </label>
+            <label>Supporting leaders
+              <select name="supporters_mode">
+                <option value="auto" <%= idp.supporters_mode === "auto" ? "selected" : "" %>>Automatic (derived)</option>
+                <option value="manual" <%= idp.supporters_mode === "manual" ? "selected" : "" %>>Manual override</option>
+              </select>
+            </label>
+            <div class="full">
+              <details class="nqs-picker" <%= idp.supporters_mode === "manual" ? "open" : "" %>>
+                <summary>Manual supporters (used only when set to Manual override)</summary>
+                <div class="nqs-checklist">
+                  <% centreStaff.forEach(function(s) { %>
+                    <label class="nqs-item">
+                      <input type="checkbox" name="supporters" value="<%= s.id %>" <%= manualIds.has(s.id) ? "checked" : "" %>>
+                      <%= s.full_name %>
+                    </label>
+                  <% }) %>
+                </div>
+              </details>
+            </div>
+            <button type="submit" class="full">Save plan</button>
+          </form>
+          <hr class="soft-rule">
+          <form method="POST" action="/development/idp/<%= idp.id %>/complete" class="inline" onsubmit="return confirm('Complete this plan? It will be locked into history and you can start the next cycle.');">
+            <button type="submit" class="button btn-outline">Mark plan complete</button>
+          </form>
+        <% } %>
       </section>
 
       <!-- SMART goals -->
@@ -113,6 +132,8 @@
               </p>
             <% } %>
             <% if (g.resources) { %><p class="goal-meta"><strong>Resources:</strong> <%= g.resources %></p><% } %>
+            <% if (g.progress_notes) { %><p class="goal-meta"><strong>Latest:</strong> <%= g.progress_notes %></p><% } %>
+            <% if (!locked) { %>
             <details class="goal-edit">
               <summary>View / edit</summary>
               <form method="POST" action="/development/goals/<%= g.id %>" class="form-grid">
@@ -142,17 +163,19 @@
                   </select>
                 </label>
                 <label class="full">Resources — what was used, or could be used?<textarea name="resources" rows="2" placeholder="e.g. First Aid course, mentoring with RL, ACECQA QA1 guide"><%= g.resources || "" %></textarea></label>
-                <label class="full">Progress notes<textarea name="progress_notes" rows="2"><%= g.progress_notes || "" %></textarea></label>
+                <label class="full">Latest progress note (quick summary)<textarea name="progress_notes" rows="2"><%= g.progress_notes || "" %></textarea></label>
                 <button type="submit">Save goal</button>
               </form>
               <form method="POST" action="/development/goals/<%= g.id %>/delete" class="inline" onsubmit="return confirm('Delete this goal?');">
                 <button type="submit" class="link-btn danger">Delete goal</button>
               </form>
             </details>
+            <% } %>
           </div>
         <% }) %>
-        <% if (goals.length === 0) { %><p class="muted">No goals yet.</p><% } %>
+        <% if (goals.length === 0) { %><p class="muted">No goals<%= locked ? " were recorded on this plan." : " yet." %></p><% } %>
 
+        <% if (!locked) { %>
         <details <%= goals.length === 0 ? "open" : "" %>>
           <summary>+ Add SMART goal</summary>
           <form method="POST" action="/development/idp/<%= idp.id %>/goals" class="form-grid">
@@ -178,6 +201,65 @@
             <button type="submit" class="full">Add goal</button>
           </form>
         </details>
+        <% } %>
+      </section>
+
+      <!-- Progress log -->
+      <section class="card">
+        <h2>Progress log</h2>
+        <p class="muted">A dated record of check-ins and reviews on this plan.</p>
+        <% if (!locked) { %>
+          <form method="POST" action="/development/idp/<%= idp.id %>/notes" class="form-grid">
+            <label class="full">Add an entry<textarea name="note" rows="2" required placeholder="e.g. Reviewed with RL — programming goal now ~50%, observed leading group time confidently"></textarea></label>
+            <label>About a goal (optional)
+              <select name="goal_id">
+                <option value="">— whole plan —</option>
+                <% goals.forEach(function(g) { %><option value="<%= g.id %>"><%= g.title %></option><% }) %>
+              </select>
+            </label>
+            <button type="submit">Add to log</button>
+          </form>
+        <% } %>
+        <% if (notes.length === 0) { %>
+          <p class="muted">No log entries yet.</p>
+        <% } else { %>
+          <ul class="log">
+            <% notes.forEach(function(n) { %>
+              <li class="log-entry">
+                <div class="log-meta">
+                  <%= n.created_at ? n.created_at.slice(0,16) : "" %>
+                  &middot; <%= n.author_label || "—" %>
+                  <% if (n.goal_id && goalNameById[n.goal_id]) { %> &middot; <span class="badge nqs-tag"><%= goalNameById[n.goal_id] %></span><% } %>
+                </div>
+                <div><%= n.note %></div>
+              </li>
+            <% }) %>
+          </ul>
+        <% } %>
+      </section>
+    <% } %>
+
+    <!-- History: past completed cycles -->
+    <% if (history.length) { %>
+      <section class="card">
+        <h2>History</h2>
+        <p class="muted">Completed plans, kept as a record of development over time.</p>
+        <% history.forEach(function(h) { %>
+          <details class="goal-edit">
+            <summary>
+              Completed <%= h.completed_at ? h.completed_at.slice(0,10) : "—" %>
+              &middot; <%= h.achieved_count %>/<%= h.goal_count %> goals achieved
+              <% if (h.focus) { %> — <%= h.focus %><% } %>
+            </summary>
+            <% if (h.goals.length) { %>
+              <ul class="history-goals">
+                <% h.goals.forEach(function(g) { %>
+                  <li><%= g.title %> <span class="badge status-<%= g.status %>"><%= goalStatusLabel[g.status] %></span></li>
+                <% }) %>
+              </ul>
+            <% } else { %><p class="muted">No goals were recorded on this plan.</p><% } %>
+          </details>
+        <% }) %>
       </section>
     <% } %>
   </main>

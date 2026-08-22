@@ -20,6 +20,23 @@ function currentIdp(staffId) {
   return db.prepare("SELECT * FROM idps WHERE staff_id = ? ORDER BY created_at DESC, id DESC LIMIT 1").get(staffId);
 }
 
+// Past completed plans (everything except the current one), newest first, each with its
+// goals attached — the person's development history across cycles.
+function idpHistory(staffId, excludeId) {
+  const plans = db.prepare(`
+    SELECT i.*,
+      (SELECT COUNT(*) FROM idp_goals g WHERE g.idp_id = i.id) AS goal_count,
+      (SELECT COUNT(*) FROM idp_goals g WHERE g.idp_id = i.id AND g.status = 'achieved') AS achieved_count
+    FROM idps i
+    WHERE i.staff_id = ? AND i.id != ? AND i.status = 'completed'
+    ORDER BY COALESCE(i.completed_at, i.created_at) DESC, i.id DESC
+  `).all(staffId, excludeId || 0);
+  for (const p of plans) {
+    p.goals = db.prepare("SELECT title, status, target_date FROM idp_goals WHERE idp_id = ? ORDER BY created_at").all(p.id);
+  }
+  return plans;
+}
+
 // Which centre the user is working within. A Centre Manager is locked to their own; an
 // Admin picks one via ?centre= (defaulting to the first), mirroring the attendance screens.
 function resolveWorkingCentre(req) {
@@ -211,15 +228,19 @@ router.get("/development/idp/:staffId", requireLogin, (req, res) => {
   if (!canManagePerson(req, person)) return res.status(403).render("error", { message: "You can only manage your own centre's staff." });
 
   const idp = currentIdp(person.id);
+  const locked = !!(idp && idp.status === "completed");
   const goals = idp ? db.prepare("SELECT * FROM idp_goals WHERE idp_id = ? ORDER BY created_at").all(idp.id) : [];
   const supporters = idpSupporters(idp, person);
+  const notes = idp ? db.prepare("SELECT * FROM idp_notes WHERE idp_id = ? ORDER BY created_at DESC, id DESC").all(idp.id) : [];
+  const history = idpHistory(person.id, idp ? idp.id : 0);
   // Centre staff for the manual-override picker (scoped to the person's own centre).
   const centreStaff = db.prepare("SELECT id, full_name FROM staff WHERE location_id = ? AND status = 'active' AND id != ? ORDER BY full_name").all(person.location_id, person.id);
   const manualIds = idp && supporters.mode === "manual" ? new Set(supporters.manual.map((s) => s.id)) : new Set();
 
   res.render("dev-idp", {
-    person, idp, goals, supporters, centreStaff, manualIds,
+    person, idp, locked, goals, supporters, notes, history, centreStaff, manualIds,
     roleLabel: person.dev_role ? ROLE_LABEL[person.dev_role] : null,
+    goalNameById: Object.fromEntries(goals.map((g) => [g.id, g.title])),
     qualityAreas: nqs.QUALITY_AREAS,
     nqs,
   });
@@ -251,8 +272,13 @@ router.post("/development/idp/:id", requireLogin, (req, res) => {
   if (!idp) return res.status(404).render("error", { message: "IDP not found." });
   const person = db.prepare("SELECT * FROM staff WHERE id = ?").get(idp.staff_id);
   if (!canManagePerson(req, person)) return res.status(403).render("error", { message: "You can only manage your own centre's staff." });
+  if (idp.status === "completed") {
+    setFlash(req, "error", "This plan is completed and locked. Reopen it to make changes.");
+    return res.redirect(`/development/idp/${person.id}`);
+  }
 
-  const status = ["draft", "active", "completed"].includes(req.body.status) ? req.body.status : idp.status;
+  // Completion is its own action (/complete) — the dropdown only toggles draft/active.
+  const status = ["draft", "active"].includes(req.body.status) ? req.body.status : idp.status;
   const supportersMode = req.body.supporters_mode === "manual" ? "manual" : "auto";
   db.prepare("UPDATE idps SET focus = ?, status = ?, review_date = ?, supporters_mode = ?, updated_at = datetime('now') WHERE id = ?")
     .run(req.body.focus || null, status, req.body.review_date || null, supportersMode, idp.id);
@@ -273,11 +299,109 @@ router.post("/development/idp/:id", requireLogin, (req, res) => {
   res.redirect(`/development/idp/${person.id}`);
 });
 
+// Complete a plan: stamp the date and lock it read-only into history.
+router.post("/development/idp/:id/complete", requireLogin, (req, res) => {
+  const idp = db.prepare("SELECT * FROM idps WHERE id = ?").get(req.params.id);
+  if (!idp) return res.status(404).render("error", { message: "IDP not found." });
+  const person = db.prepare("SELECT * FROM staff WHERE id = ?").get(idp.staff_id);
+  if (!canManagePerson(req, person)) return res.status(403).render("error", { message: "You can only manage your own centre's staff." });
+
+  db.prepare("UPDATE idps SET status = 'completed', completed_at = datetime('now'), updated_at = datetime('now') WHERE id = ?").run(idp.id);
+  logAction(req, "idp.complete", `Completed ${person.full_name}'s IDP`);
+  setFlash(req, "success", "Plan completed and moved to history. Start the next cycle when ready.");
+  res.redirect(`/development/idp/${person.id}`);
+});
+
+// Reopen a completed plan back to active — for corrections.
+router.post("/development/idp/:id/reopen", requireLogin, (req, res) => {
+  const idp = db.prepare("SELECT * FROM idps WHERE id = ?").get(req.params.id);
+  if (!idp) return res.status(404).render("error", { message: "IDP not found." });
+  const person = db.prepare("SELECT * FROM staff WHERE id = ?").get(idp.staff_id);
+  if (!canManagePerson(req, person)) return res.status(403).render("error", { message: "You can only manage your own centre's staff." });
+
+  // Only the person's latest plan can be reopened — reopening an older one would create two
+  // live plans at once, breaking the "one living IDP" rule.
+  if (currentIdp(person.id).id !== idp.id) {
+    setFlash(req, "error", "A newer plan exists — only the current plan can be reopened.");
+    return res.redirect(`/development/idp/${person.id}`);
+  }
+  db.prepare("UPDATE idps SET status = 'active', completed_at = NULL, updated_at = datetime('now') WHERE id = ?").run(idp.id);
+  logAction(req, "idp.reopen", `Reopened ${person.full_name}'s IDP`);
+  setFlash(req, "success", "Plan reopened.");
+  res.redirect(`/development/idp/${person.id}`);
+});
+
+// Start the next cycle from a completed plan, carrying forward unfinished goals.
+router.post("/development/idp/:id/start-next", requireLogin, (req, res) => {
+  const prev = db.prepare("SELECT * FROM idps WHERE id = ?").get(req.params.id);
+  if (!prev) return res.status(404).render("error", { message: "IDP not found." });
+  const person = db.prepare("SELECT * FROM staff WHERE id = ?").get(prev.staff_id);
+  if (!canManagePerson(req, person)) return res.status(403).render("error", { message: "You can only manage your own centre's staff." });
+
+  if (prev.status !== "completed" || currentIdp(person.id).id !== prev.id) {
+    setFlash(req, "error", "Complete the current plan before starting the next cycle.");
+    return res.redirect(`/development/idp/${person.id}`);
+  }
+
+  // Carry forward the goals that weren't finished (not achieved, not dropped), resetting
+  // them into the new cycle so progress continues rather than restarting from scratch.
+  const carry = db.prepare("SELECT * FROM idp_goals WHERE idp_id = ? AND status IN ('not_started','in_progress') ORDER BY created_at").all(prev.id);
+  let newId;
+  const txn = db.transaction(() => {
+    newId = db.prepare("INSERT INTO idps (staff_id, status, supporters_mode, carried_from_id, created_by) VALUES (?, 'draft', ?, ?, ?)")
+      .run(person.id, prev.supporters_mode, prev.id, req.session.user.id).lastInsertRowid;
+    const ins = db.prepare(`
+      INSERT INTO idp_goals (idp_id, title, specific, measurable, achievable, relevant, target_date, nqs_element_code, resources, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    for (const g of carry) {
+      ins.run(newId, g.title, g.specific, g.measurable, g.achievable, g.relevant, g.target_date, g.nqs_element_code, g.resources, g.status);
+    }
+  });
+  txn();
+  logAction(req, "idp.start_next", `Started a new IDP cycle for ${person.full_name}, carrying ${carry.length} goal(s) forward`);
+  setFlash(req, "success", `New plan started${carry.length ? ` — ${carry.length} unfinished goal(s) carried forward` : ""}.`);
+  res.redirect(`/development/idp/${person.id}`);
+});
+
+// Add a dated entry to the plan's progress log (optionally about a specific goal).
+router.post("/development/idp/:id/notes", requireLogin, (req, res) => {
+  const idp = db.prepare("SELECT * FROM idps WHERE id = ?").get(req.params.id);
+  if (!idp) return res.status(404).render("error", { message: "IDP not found." });
+  const person = db.prepare("SELECT * FROM staff WHERE id = ?").get(idp.staff_id);
+  if (!canManagePerson(req, person)) return res.status(403).render("error", { message: "You can only manage your own centre's staff." });
+  if (idp.status === "completed") {
+    setFlash(req, "error", "This plan is completed and locked. Reopen it to add notes.");
+    return res.redirect(`/development/idp/${person.id}`);
+  }
+
+  const note = (req.body.note || "").trim();
+  if (!note) {
+    setFlash(req, "error", "The note is empty.");
+    return res.redirect(`/development/idp/${person.id}`);
+  }
+  // Only accept a goal_id that actually belongs to this plan.
+  let goalId = null;
+  if (req.body.goal_id) {
+    const g = db.prepare("SELECT id FROM idp_goals WHERE id = ? AND idp_id = ?").get(parseInt(req.body.goal_id, 10), idp.id);
+    if (g) goalId = g.id;
+  }
+  db.prepare("INSERT INTO idp_notes (idp_id, goal_id, note, author_label, created_by) VALUES (?, ?, ?, ?, ?)")
+    .run(idp.id, goalId, note, req.session.user.full_name, req.session.user.id);
+  logAction(req, "idp.note_add", `Added a progress note to ${person.full_name}'s IDP`);
+  setFlash(req, "success", "Progress note added.");
+  res.redirect(`/development/idp/${person.id}`);
+});
+
 router.post("/development/idp/:id/goals", requireLogin, (req, res) => {
   const idp = db.prepare("SELECT * FROM idps WHERE id = ?").get(req.params.id);
   if (!idp) return res.status(404).render("error", { message: "IDP not found." });
   const person = db.prepare("SELECT * FROM staff WHERE id = ?").get(idp.staff_id);
   if (!canManagePerson(req, person)) return res.status(403).render("error", { message: "You can only manage your own centre's staff." });
+  if (idp.status === "completed") {
+    setFlash(req, "error", "This plan is completed and locked. Reopen it to add goals.");
+    return res.redirect(`/development/idp/${person.id}`);
+  }
 
   const title = (req.body.title || "").trim();
   if (!title) {
@@ -300,6 +424,10 @@ router.post("/development/goals/:id", requireLogin, (req, res) => {
   const idp = db.prepare("SELECT * FROM idps WHERE id = ?").get(goal.idp_id);
   const person = db.prepare("SELECT * FROM staff WHERE id = ?").get(idp.staff_id);
   if (!canManagePerson(req, person)) return res.status(403).render("error", { message: "You can only manage your own centre's staff." });
+  if (idp.status === "completed") {
+    setFlash(req, "error", "This plan is completed and locked. Reopen it to edit goals.");
+    return res.redirect(`/development/idp/${person.id}`);
+  }
 
   const status = ["not_started", "in_progress", "achieved", "dropped"].includes(req.body.status) ? req.body.status : goal.status;
   const nqsCode = req.body.nqs_element_code && nqs.isValidElementCode(req.body.nqs_element_code) ? req.body.nqs_element_code : null;
@@ -320,6 +448,10 @@ router.post("/development/goals/:id/delete", requireLogin, (req, res) => {
   const idp = db.prepare("SELECT * FROM idps WHERE id = ?").get(goal.idp_id);
   const person = db.prepare("SELECT * FROM staff WHERE id = ?").get(idp.staff_id);
   if (!canManagePerson(req, person)) return res.status(403).render("error", { message: "You can only manage your own centre's staff." });
+  if (idp.status === "completed") {
+    setFlash(req, "error", "This plan is completed and locked. Reopen it to delete goals.");
+    return res.redirect(`/development/idp/${person.id}`);
+  }
 
   db.prepare("DELETE FROM idp_goals WHERE id = ?").run(goal.id);
   logAction(req, "idp.goal_delete", `Deleted goal "${goal.title}" from ${person.full_name}'s IDP`);

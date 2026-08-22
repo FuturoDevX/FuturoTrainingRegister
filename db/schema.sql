@@ -137,6 +137,8 @@ CREATE TABLE IF NOT EXISTS idps (
   -- whole point of the responsibility engine); 'manual' uses the idp_supporters rows
   -- instead, for the occasional case that doesn't fit the standard chain.
   supporters_mode TEXT NOT NULL DEFAULT 'auto' CHECK (supporters_mode IN ('auto','manual')),
+  completed_at TEXT,                    -- set when marked completed; locks the plan read-only into history
+  carried_from_id INTEGER REFERENCES idps(id),  -- the prior plan this cycle was started from (goal carry-forward lineage)
   created_by INTEGER REFERENCES users(id),
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -168,4 +170,18 @@ CREATE TABLE IF NOT EXISTS idp_supporters (
   idp_id INTEGER NOT NULL REFERENCES idps(id),
   staff_id INTEGER NOT NULL REFERENCES staff(id),
   UNIQUE(idp_id, staff_id)
+);
+
+-- Dated progress/review journal on a plan — a running log, not an overwritable snapshot.
+-- Optionally tied to a specific goal. author_label carries who contributed (the CM's name
+-- now; a supporting leader's or the educator's name when magic-link contribution lands),
+-- and created_by is the login that recorded it (NULL for no-login/magic-link entries).
+CREATE TABLE IF NOT EXISTS idp_notes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  idp_id INTEGER NOT NULL REFERENCES idps(id),
+  goal_id INTEGER REFERENCES idp_goals(id),   -- optional: a note about one specific goal
+  note TEXT NOT NULL,
+  author_label TEXT,                          -- human name shown against the entry
+  created_by INTEGER REFERENCES users(id),
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );

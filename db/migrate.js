@@ -52,3 +52,16 @@ if (goalCols.length && !goalCols.includes("resources")) {
   db.exec("ALTER TABLE idp_goals ADD COLUMN resources TEXT");
   console.log("Migrated: added idp_goals.resources");
 }
+
+// idps completion/lineage columns — added with the multi-cycle IDP work. Fresh databases
+// get them from schema.sql's CREATE; existing ones need the ALTERs. idp_notes is a brand
+// new table so schema.sql's CREATE TABLE IF NOT EXISTS covers it everywhere (no ALTER).
+const idpCols = db.prepare("PRAGMA table_info(idps)").all().map((c) => c.name);
+if (idpCols.length && !idpCols.includes("completed_at")) {
+  db.exec("ALTER TABLE idps ADD COLUMN completed_at TEXT");
+  console.log("Migrated: added idps.completed_at");
+}
+if (idpCols.length && !idpCols.includes("carried_from_id")) {
+  db.exec("ALTER TABLE idps ADD COLUMN carried_from_id INTEGER REFERENCES idps(id)");
+  console.log("Migrated: added idps.carried_from_id");
+}
