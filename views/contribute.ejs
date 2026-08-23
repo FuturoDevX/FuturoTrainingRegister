@@ -7,34 +7,80 @@
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
+  <%
+    var goalStatusLabel = { not_started: "Not started", in_progress: "In progress", achieved: "Achieved", dropped: "Dropped" };
+    var isEducator = audience === "educator";
+    var firstName = person.full_name.split(" ")[0];
+    var nameValue = (submitted && submitted.author_label) ? submitted.author_label : prefillName;
+    var bodyValue = (submitted && submitted.body) ? submitted.body : "";
+    var submittedGoal = submitted && submitted.goal_id ? String(submitted.goal_id) : "";
+  %>
   <div class="contribute-sheet">
     <div class="contribute-brand">Futuro Training Tracker</div>
-    <div class="card">
-      <% if (done) { %>
+
+    <% if (done) { %>
+      <div class="card">
         <h1>Thanks — sent.</h1>
-        <p class="muted">Your input for <strong><%= person.full_name %></strong> has gone to <%= inviter ? inviter.full_name : "the Centre Manager" %> to review. You can close this page.</p>
-      <% } else { %>
-        <h1>Add your input</h1>
-        <p class="muted">You've been invited<%= inviter ? " by " + inviter.full_name : "" %> to contribute to <strong><%= person.full_name %>'s</strong> development plan. No login needed — this link is just for this.</p>
+        <p class="muted">Your input for <strong><%= person.full_name %></strong> has gone to <%= inviter ? inviter.full_name : "the Centre Manager" %> to review and add to the plan. You can close this page.</p>
+      </div>
+    <% } else { %>
+      <div class="card">
+        <% if (isEducator) { %>
+          <h1>Your development plan</h1>
+          <p class="muted">Hi <%= firstName %> — add your own reflection on how your development is going. It goes to <%= inviter ? inviter.full_name : "your Centre Manager" %> to add to your plan. No login needed.</p>
+        <% } else { %>
+          <h1>Add your input</h1>
+          <p class="muted">You've been invited<%= inviter ? " by " + inviter.full_name : "" %> to contribute to <strong><%= person.full_name %>'s</strong> development plan. It goes to <%= inviter ? inviter.full_name : "the Centre Manager" %> to review. No login needed.</p>
+        <% } %>
+
+        <div class="ctx-person">
+          <strong><%= person.full_name %></strong>
+          <span class="muted"><%= person.position_title || "" %><% if (person.room_name) { %> &middot; <%= person.room_name %><% } %><% if (person.location_name) { %> &middot; <%= person.location_name %><% } %></span>
+          <% if (idp.focus) { %><div class="ctx-focus"><span class="ctx-lbl">Plan focus</span> <%= idp.focus %></div><% } %>
+        </div>
+      </div>
+
+      <% if (goals.length) { %>
+        <div class="card">
+          <h2 class="ctx-h">The goals on this plan</h2>
+          <p class="muted" style="font-size:0.85rem;margin:0 0 12px">For context — pick the one you're commenting on below, or comment on the plan overall.</p>
+          <% goals.forEach(function(g) { %>
+            <div class="ctx-goal">
+              <div class="row-between">
+                <strong><%= g.title %></strong>
+                <span class="badge status-<%= g.status %>"><%= goalStatusLabel[g.status] %></span>
+              </div>
+              <% if (g.specific) { %><div class="ctx-goal-line"><span class="ctx-lbl">What</span> <%= g.specific %></div><% } %>
+              <% if (g.measurable) { %><div class="ctx-goal-line"><span class="ctx-lbl">Done when</span> <%= g.measurable %></div><% } %>
+              <% if (g.target_date) { %><div class="ctx-goal-line"><span class="ctx-lbl">Target</span> <%= g.target_date %></div><% } %>
+            </div>
+          <% }) %>
+        </div>
+      <% } %>
+
+      <div class="card">
         <% if (error) { %><p class="error"><%= error %></p><% } %>
         <form method="POST" action="/contribute/<%= token %>">
           <label>Your name
-            <input type="text" name="author_label" required placeholder="e.g. Sam Reid (Educational Leader)">
+            <input type="text" name="author_label" required value="<%= nameValue %>" placeholder="e.g. Sam Reid (Educational Leader)">
           </label>
-          <label>About a goal (optional)
+
+          <label>Which goal is this about?
             <select name="goal_id">
-              <option value="">— the whole plan —</option>
-              <% goals.forEach(function(g) { %><option value="<%= g.id %>"><%= g.title %></option><% }) %>
+              <option value="" <%= submittedGoal === "" ? "selected" : "" %>>The plan overall</option>
+              <% goals.forEach(function(g) { %><option value="<%= g.id %>" <%= submittedGoal === String(g.id) ? "selected" : "" %>><%= g.title %></option><% }) %>
             </select>
           </label>
-          <label>Your reflection or update
-            <textarea name="body" rows="6" required placeholder="What have you observed? How is this progressing?"></textarea>
+
+          <label><%= isEducator ? "How's it going, in your words?" : "Your observations" %>
+            <textarea name="body" rows="6" required placeholder="<%= isEducator ? 'What have you been working on? What’s going well, what’s tricky, and what would help you move forward?' : 'What have you observed? How are they progressing, and what support would help?' %>"><%= bodyValue %></textarea>
           </label>
+
           <button type="submit">Submit</button>
         </form>
-        <p class="muted contribute-note">Your note goes to the Centre Manager to review before it's added to the plan.</p>
-      <% } %>
-    </div>
+        <p class="muted contribute-note">Your note goes to <%= inviter ? inviter.full_name : "the Centre Manager" %> to review before it's added to the plan.</p>
+      </div>
+    <% } %>
   </div>
 </body>
 </html>

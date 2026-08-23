@@ -96,7 +96,8 @@
                 <button type="submit" class="full">Save plan</button>
               </form>
               <hr class="soft-rule">
-              <form method="POST" action="/development/idp/<%= idp.id %>/complete" class="inline" onsubmit="return confirm('Complete this plan? It will be locked into history and you can start the next cycle.');">
+              <p class="muted" style="font-size:0.8rem;margin:0 0 8px">Completing locks the plan into history — you can reopen it or start the next cycle afterwards.</p>
+              <form method="POST" action="/development/idp/<%= idp.id %>/complete" class="inline">
                 <button type="submit" class="button btn-outline">Mark plan complete</button>
               </form>
             </details>
