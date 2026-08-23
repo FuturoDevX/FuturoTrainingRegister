@@ -305,6 +305,32 @@ router.post("/development/idp/:id", requireLogin, (req, res) => {
   res.redirect(`/development/idp/${person.id}`);
 });
 
+// Delete a plan entirely — for a mistake (wrong person, accidental create). Distinct
+// from Complete (which keeps it as history). Cascades to everything hanging off the plan
+// so nothing is orphaned. Confirmed with a two-step reveal in the UI, not a dialog.
+router.post("/development/idp/:id/delete", requireLogin, (req, res) => {
+  const idp = db.prepare("SELECT * FROM idps WHERE id = ?").get(req.params.id);
+  if (!idp) return res.status(404).render("error", { message: "IDP not found." });
+  const person = db.prepare("SELECT * FROM staff WHERE id = ?").get(idp.staff_id);
+  if (!canManagePerson(req, person)) return res.status(403).render("error", { message: "You can only manage your own centre's staff." });
+
+  const txn = db.transaction(() => {
+    db.prepare("DELETE FROM idp_notes WHERE idp_id = ?").run(idp.id);
+    db.prepare("DELETE FROM idp_contributions WHERE idp_id = ?").run(idp.id);
+    db.prepare("DELETE FROM idp_contrib_links WHERE idp_id = ?").run(idp.id);
+    db.prepare("DELETE FROM idp_supporters WHERE idp_id = ?").run(idp.id);
+    db.prepare("DELETE FROM idp_goals WHERE idp_id = ?").run(idp.id);
+    // Any later cycle that carried forward from this one loses only the lineage pointer.
+    db.prepare("UPDATE idps SET carried_from_id = NULL WHERE carried_from_id = ?").run(idp.id);
+    db.prepare("DELETE FROM idps WHERE id = ?").run(idp.id);
+  });
+  txn();
+
+  logAction(req, "idp.delete", `Deleted an IDP for ${person.full_name}`);
+  setFlash(req, "success", `Plan deleted for ${person.full_name}.`);
+  res.redirect("/development/plans");
+});
+
 // Complete a plan: stamp the date and lock it read-only into history.
 router.post("/development/idp/:id/complete", requireLogin, (req, res) => {
   const idp = db.prepare("SELECT * FROM idps WHERE id = ?").get(req.params.id);

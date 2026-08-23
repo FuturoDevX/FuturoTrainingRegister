@@ -309,6 +309,18 @@
           </section>
         <% } %>
       </div>
+
+      <!-- Delete a plan created by mistake. Two-step reveal (not a JS dialog) so it can't
+           be triggered accidentally and can't silently fail if dialogs are suppressed. -->
+      <details class="danger-zone">
+        <summary>Delete this plan…</summary>
+        <div class="danger-body">
+          <p class="muted" style="margin:0 0 10px">Permanently removes this plan and everything on it — goals, progress log, contributions and links. Use this only for a mistake; to close a finished plan, use <em>Mark plan complete</em> instead. This can't be undone.</p>
+          <form method="POST" action="/development/idp/<%= idp.id %>/delete" class="inline">
+            <button type="submit" class="button danger-btn">Yes, permanently delete this plan</button>
+          </form>
+        </div>
+      </details>
     <% } %>
   </main>
   <script src="/tabs.js"></script>

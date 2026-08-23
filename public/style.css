@@ -193,6 +193,15 @@ body {
 .contrib-meta { font-size: 0.75rem; color: #778; margin-bottom: 4px; }
 .cyc-card > summary { cursor: pointer; }
 
+.danger-zone { margin-top: 20px; }
+.danger-zone > summary { cursor: pointer; color: var(--error); font-size: 0.85rem; list-style: none; }
+.danger-zone > summary::-webkit-details-marker { display: none; }
+.danger-body { border: 1px solid #f0d4d4; background: #fdf4f4; border-radius: 8px; padding: 14px 16px; margin-top: 8px; }
+/* .button.danger-btn (not bare .danger-btn) so it out-ranks the base .button rule,
+   which is defined later in this file — same trick as .button.btn-outline. */
+.button.danger-btn { background: var(--error); border-color: var(--error); color: white; }
+.button.danger-btn:hover { background: #8f1e17; border-color: #8f1e17; }
+
 /* Public magic-link contribution page (no nav) */
 .contribute-sheet { max-width: 520px; margin: 0 auto; padding: 32px 20px; }
 .contribute-brand { text-align: center; color: var(--brand-dark); font-weight: 700; margin-bottom: 18px; }
