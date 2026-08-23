@@ -11,6 +11,7 @@ const { flashMiddleware } = require("./middleware/flash");
 const { logAction } = require("./services/audit");
 
 const authRoutes = require("./routes/auth");
+const contributeRoutes = require("./routes/contribute");
 const homeRoutes = require("./routes/home");
 const trainingRoutes = require("./routes/training");
 const developmentRoutes = require("./routes/development");
@@ -43,6 +44,7 @@ app.use(flashMiddleware);
 app.get("/", (req, res) => res.redirect(req.session.user ? "/home" : "/login"));
 
 app.use(authRoutes);
+app.use(contributeRoutes); // public, no-login magic-link routes
 app.use(homeRoutes);
 app.use(trainingRoutes);
 app.use(developmentRoutes);

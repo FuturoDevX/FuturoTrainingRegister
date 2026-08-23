@@ -46,6 +46,25 @@
       </div>
     <% } %>
 
+    <% if (typeof idpHistory !== "undefined" && idpHistory.length) { %>
+      <h2>Development history</h2>
+      <p class="muted">Completed plans, most recent first.</p>
+      <% idpHistory.forEach(function(h) { %>
+        <div class="history-cycle">
+          <div class="row-between">
+            <strong>Completed <%= h.completed_at ? h.completed_at.slice(0,10) : "—" %></strong>
+            <span class="muted"><%= h.achieved_count %>/<%= h.goal_count %> goals achieved</span>
+          </div>
+          <% if (h.focus) { %><p class="muted" style="margin:4px 0 6px"><%= h.focus %></p><% } %>
+          <% if (h.goals.length) { %>
+            <ul class="history-goals">
+              <% h.goals.forEach(function(g) { %><li><span><%= g.title %></span> <span class="badge status-<%= g.status %>"><%= goalStatusLabel[g.status] %></span></li><% }) %>
+            </ul>
+          <% } %>
+        </div>
+      <% }) %>
+    <% } %>
+
     <h2>Training</h2>
     <p><strong><%= totalHours %> hours</strong> of training attended (all-time)</p>
 

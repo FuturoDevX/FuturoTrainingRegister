@@ -197,7 +197,21 @@ router.get("/report/person/:id", requireLogin, (req, res) => {
   const idp = db.prepare("SELECT * FROM idps WHERE staff_id = ? ORDER BY created_at DESC, id DESC LIMIT 1").get(staffMember.id);
   const goals = idp ? db.prepare("SELECT * FROM idp_goals WHERE idp_id = ? ORDER BY created_at").all(idp.id) : [];
 
-  res.render("report-person", { staffMember, sessions, totalHours, nqs, idp, goals });
+  // Completed cycles (everything except the current plan), each with its goals — so the
+  // printable record shows development across cycles, matching the IDP page's History tab.
+  const idpHistory = db.prepare(`
+    SELECT i.*,
+      (SELECT COUNT(*) FROM idp_goals g WHERE g.idp_id = i.id) AS goal_count,
+      (SELECT COUNT(*) FROM idp_goals g WHERE g.idp_id = i.id AND g.status = 'achieved') AS achieved_count
+    FROM idps i
+    WHERE i.staff_id = ? AND i.status = 'completed' AND i.id != ?
+    ORDER BY COALESCE(i.completed_at, i.created_at) DESC, i.id DESC
+  `).all(staffMember.id, idp ? idp.id : 0);
+  for (const h of idpHistory) {
+    h.goals = db.prepare("SELECT title, status FROM idp_goals WHERE idp_id = ? ORDER BY created_at").all(h.id);
+  }
+
+  res.render("report-person", { staffMember, sessions, totalHours, nqs, idp, goals, idpHistory });
 });
 
 module.exports = router;

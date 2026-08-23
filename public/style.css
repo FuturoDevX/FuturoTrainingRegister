@@ -142,8 +142,62 @@ body {
 .log-entry { padding: 0.6rem 0; border-bottom: 1px solid var(--border); }
 .log-entry:last-child { border-bottom: none; }
 .log-meta { font-size: 0.8rem; color: var(--muted); margin-bottom: 0.2rem; }
-.history-goals { margin: 0.5rem 0 0; padding-left: 1.1rem; }
-.history-goals li { margin-bottom: 0.3rem; }
+.history-cycle { border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; }
+.history-goals { margin: 0.5rem 0 0; padding-left: 0; list-style: none; }
+.history-goals li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid #f0f2f0; }
+.history-goals li:last-child { border-bottom: none; }
+
+/* ===== Redesigned IDP page ===== */
+.completed-banner { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; background: #eef3f1; border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; margin: 16px 0; }
+
+.glance-card { margin-top: 16px; }
+.glance { display: flex; flex-wrap: wrap; gap: 24px; }
+.g-lbl { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.03em; color: #889; }
+.g-val { font-size: 0.95rem; font-weight: 600; margin-top: 2px; }
+.supporter-chips { display: flex; gap: 7px; flex-wrap: wrap; align-items: center; margin-top: 14px; padding-top: 12px; border-top: 1px solid #eef1ef; }
+.chip { display: inline-flex; align-items: center; gap: 5px; background: #f0eee6; border-radius: 999px; padding: 3px 10px; font-size: 0.8rem; }
+.chip-r { color: var(--brand); font-weight: 700; }
+
+.editplan > summary { list-style: none; cursor: pointer; }
+.editplan > summary::-webkit-details-marker { display: none; }
+.edit-link { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 0.82rem; }
+.edit-link:hover { color: var(--brand-dark); }
+
+.idp-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin: 20px 0 18px; flex-wrap: wrap; }
+.idp-tab { background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; padding: 9px 15px; font: inherit; font-size: 0.9rem; font-weight: 600; color: var(--muted); cursor: pointer; }
+/* Override the base button:hover (which fills green) — tabs stay text-only. */
+.idp-tab:hover, .idp-tab:focus { background: none; color: var(--brand-dark); }
+.idp-tab.on { color: var(--brand-dark); border-bottom-color: var(--brand); }
+.tab-count { background: #dbe7f3; color: #234e7a; border-radius: 999px; padding: 0 7px; font-size: 0.72rem; font-weight: 700; }
+
+.goal-row { padding: 13px 0; border-bottom: 1px solid #eef1ef; }
+.goal-row:last-child { border-bottom: none; }
+.goal-head { display: flex; align-items: flex-start; gap: 12px; }
+.goal-title { font-weight: 600; }
+.goal-meta { font-size: 0.8rem; color: #778; margin-top: 3px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+.add-goal { position: relative; }
+.add-goal > summary { list-style: none; display: inline-flex; }
+.add-goal > summary::-webkit-details-marker { display: none; }
+
+/* Contributions */
+.invite-row { display: flex; gap: 12px; flex-wrap: wrap; }
+.invite { flex: 1; min-width: 220px; border: 1px solid var(--border); border-radius: 8px; padding: 13px 15px; }
+.invite h3 { margin: 0 0 4px; font-size: 0.95rem; }
+.linkbox { display: flex; gap: 8px; align-items: center; background: #f6f5f1; border: 1px dashed #cdd3cf; border-radius: 6px; padding: 8px 10px; margin-bottom: 8px; flex-wrap: wrap; }
+.link-url { flex: 1; min-width: 180px; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 0.78rem; color: #556; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.btn-sm { padding: 5px 10px; font-size: 0.78rem; }
+.btn-grey { border-color: var(--border); color: var(--muted); }
+.contrib { border: 1px solid #eef1ef; border-radius: 8px; padding: 12px 14px; margin-bottom: 10px; }
+.contrib:last-child { margin-bottom: 0; }
+.contrib-meta { font-size: 0.75rem; color: #778; margin-bottom: 4px; }
+.cyc-card > summary { cursor: pointer; }
+
+/* Public magic-link contribution page (no nav) */
+.contribute-sheet { max-width: 480px; margin: 0 auto; padding: 32px 20px; }
+.contribute-brand { text-align: center; color: var(--brand-dark); font-weight: 700; margin-bottom: 18px; }
+.contribute-sheet .card label { display: block; }
+.contribute-note { font-size: 0.78rem; margin-top: 14px; text-align: center; }
 
 /* IDP report — stat tiles + coverage bars */
 .stat-row { display: flex; flex-wrap: wrap; gap: 1.5rem; margin-top: 0.5rem; }

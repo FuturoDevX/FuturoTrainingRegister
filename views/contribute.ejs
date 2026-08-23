@@ -1,0 +1,40 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Add your input — Futuro Training Tracker</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="contribute-sheet">
+    <div class="contribute-brand">Futuro Training Tracker</div>
+    <div class="card">
+      <% if (done) { %>
+        <h1>Thanks — sent.</h1>
+        <p class="muted">Your input for <strong><%= person.full_name %></strong> has gone to <%= inviter ? inviter.full_name : "the Centre Manager" %> to review. You can close this page.</p>
+      <% } else { %>
+        <h1>Add your input</h1>
+        <p class="muted">You've been invited<%= inviter ? " by " + inviter.full_name : "" %> to contribute to <strong><%= person.full_name %>'s</strong> development plan. No login needed — this link is just for this.</p>
+        <% if (error) { %><p class="error"><%= error %></p><% } %>
+        <form method="POST" action="/contribute/<%= token %>">
+          <label>Your name
+            <input type="text" name="author_label" required placeholder="e.g. Sam Reid (Educational Leader)">
+          </label>
+          <label>About a goal (optional)
+            <select name="goal_id">
+              <option value="">— the whole plan —</option>
+              <% goals.forEach(function(g) { %><option value="<%= g.id %>"><%= g.title %></option><% }) %>
+            </select>
+          </label>
+          <label>Your reflection or update
+            <textarea name="body" rows="6" required placeholder="What have you observed? How is this progressing?"></textarea>
+          </label>
+          <button type="submit">Submit</button>
+        </form>
+        <p class="muted contribute-note">Your note goes to the Centre Manager to review before it's added to the plan.</p>
+      <% } %>
+    </div>
+  </div>
+</body>
+</html>

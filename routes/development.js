@@ -5,6 +5,7 @@ const { setFlash } = require("../middleware/flash");
 const { logAction } = require("../services/audit");
 const { ROLES, ROLE_LABEL, suggestDevRole, isValidDevRole } = require("../services/devRole");
 const { deriveSupporters } = require("../services/responsibility");
+const { newToken } = require("../services/contribLinks");
 const nqs = require("../services/nqs");
 
 const router = express.Router();
@@ -233,12 +234,17 @@ router.get("/development/idp/:staffId", requireLogin, (req, res) => {
   const supporters = idpSupporters(idp, person);
   const notes = idp ? db.prepare("SELECT * FROM idp_notes WHERE idp_id = ? ORDER BY created_at DESC, id DESC").all(idp.id) : [];
   const history = idpHistory(person.id, idp ? idp.id : 0);
+  // Magic-link contributions: active links (with full copy-paste URL) + anything awaiting review.
+  const baseUrl = `${req.protocol}://${req.get("host")}`;
+  const links = idp ? db.prepare("SELECT * FROM idp_contrib_links WHERE idp_id = ? AND revoked_at IS NULL AND expires_at > datetime('now') ORDER BY created_at DESC").all(idp.id) : [];
+  for (const l of links) l.url = `${baseUrl}/contribute/${l.token}`;
+  const pending = idp ? db.prepare("SELECT * FROM idp_contributions WHERE idp_id = ? AND status = 'pending' ORDER BY created_at").all(idp.id) : [];
   // Centre staff for the manual-override picker (scoped to the person's own centre).
   const centreStaff = db.prepare("SELECT id, full_name FROM staff WHERE location_id = ? AND status = 'active' AND id != ? ORDER BY full_name").all(person.location_id, person.id);
   const manualIds = idp && supporters.mode === "manual" ? new Set(supporters.manual.map((s) => s.id)) : new Set();
 
   res.render("dev-idp", {
-    person, idp, locked, goals, supporters, notes, history, centreStaff, manualIds,
+    person, idp, locked, goals, supporters, notes, history, centreStaff, manualIds, links, pending,
     roleLabel: person.dev_role ? ROLE_LABEL[person.dev_role] : null,
     goalNameById: Object.fromEntries(goals.map((g) => [g.id, g.title])),
     qualityAreas: nqs.QUALITY_AREAS,
@@ -390,7 +396,71 @@ router.post("/development/idp/:id/notes", requireLogin, (req, res) => {
     .run(idp.id, goalId, note, req.session.user.full_name, req.session.user.id);
   logAction(req, "idp.note_add", `Added a progress note to ${person.full_name}'s IDP`);
   setFlash(req, "success", "Progress note added.");
-  res.redirect(`/development/idp/${person.id}`);
+  res.redirect(`/development/idp/${person.id}#log`);
+});
+
+// Generate a magic link (default 14-day expiry) for the educator or a supporting leader.
+router.post("/development/idp/:id/links", requireLogin, (req, res) => {
+  const idp = db.prepare("SELECT * FROM idps WHERE id = ?").get(req.params.id);
+  if (!idp) return res.status(404).render("error", { message: "IDP not found." });
+  const person = db.prepare("SELECT * FROM staff WHERE id = ?").get(idp.staff_id);
+  if (!canManagePerson(req, person)) return res.status(403).render("error", { message: "You can only manage your own centre's staff." });
+
+  const audience = req.body.audience === "leader" ? "leader" : "educator";
+  const days = Math.min(90, Math.max(1, parseInt(req.body.days, 10) || 14));
+  db.prepare(`INSERT INTO idp_contrib_links (idp_id, token, audience, expires_at, created_by)
+    VALUES (?, ?, ?, datetime('now', ?), ?)`).run(idp.id, newToken(), audience, `+${days} days`, req.session.user.id);
+  logAction(req, "idp.link_create", `Created a ${audience} contribution link for ${person.full_name}'s IDP (${days}d)`);
+  setFlash(req, "success", "Contribution link created — copy it and send it on.");
+  res.redirect(`/development/idp/${person.id}#contributions`);
+});
+
+router.post("/development/links/:id/revoke", requireLogin, (req, res) => {
+  const link = db.prepare("SELECT * FROM idp_contrib_links WHERE id = ?").get(req.params.id);
+  if (!link) return res.status(404).render("error", { message: "Link not found." });
+  const idp = db.prepare("SELECT * FROM idps WHERE id = ?").get(link.idp_id);
+  const person = db.prepare("SELECT * FROM staff WHERE id = ?").get(idp.staff_id);
+  if (!canManagePerson(req, person)) return res.status(403).render("error", { message: "You can only manage your own centre's staff." });
+
+  db.prepare("UPDATE idp_contrib_links SET revoked_at = datetime('now') WHERE id = ?").run(link.id);
+  logAction(req, "idp.link_revoke", `Revoked a contribution link for ${person.full_name}'s IDP`);
+  setFlash(req, "success", "Link revoked.");
+  res.redirect(`/development/idp/${person.id}#contributions`);
+});
+
+// Accept a pending contribution — copies it into the progress log, attributed "via <name>".
+router.post("/development/contributions/:id/accept", requireLogin, (req, res) => {
+  const c = db.prepare("SELECT * FROM idp_contributions WHERE id = ?").get(req.params.id);
+  if (!c) return res.status(404).render("error", { message: "Contribution not found." });
+  const idp = db.prepare("SELECT * FROM idps WHERE id = ?").get(c.idp_id);
+  const person = db.prepare("SELECT * FROM staff WHERE id = ?").get(idp.staff_id);
+  if (!canManagePerson(req, person)) return res.status(403).render("error", { message: "You can only manage your own centre's staff." });
+  if (c.status !== "pending") return res.redirect(`/development/idp/${person.id}#contributions`);
+
+  const txn = db.transaction(() => {
+    db.prepare("INSERT INTO idp_notes (idp_id, goal_id, note, author_label, created_by) VALUES (?, ?, ?, ?, ?)")
+      .run(idp.id, c.goal_id, c.body, `via ${c.author_label}`, req.session.user.id);
+    db.prepare("UPDATE idp_contributions SET status = 'accepted', reviewed_by = ?, reviewed_at = datetime('now') WHERE id = ?")
+      .run(req.session.user.id, c.id);
+  });
+  txn();
+  logAction(req, "idp.contrib_accept", `Accepted ${c.author_label}'s contribution into ${person.full_name}'s IDP log`);
+  setFlash(req, "success", "Added to the progress log.");
+  res.redirect(`/development/idp/${person.id}#log`);
+});
+
+router.post("/development/contributions/:id/dismiss", requireLogin, (req, res) => {
+  const c = db.prepare("SELECT * FROM idp_contributions WHERE id = ?").get(req.params.id);
+  if (!c) return res.status(404).render("error", { message: "Contribution not found." });
+  const idp = db.prepare("SELECT * FROM idps WHERE id = ?").get(c.idp_id);
+  const person = db.prepare("SELECT * FROM staff WHERE id = ?").get(idp.staff_id);
+  if (!canManagePerson(req, person)) return res.status(403).render("error", { message: "You can only manage your own centre's staff." });
+
+  db.prepare("UPDATE idp_contributions SET status = 'dismissed', reviewed_by = ?, reviewed_at = datetime('now') WHERE id = ? AND status = 'pending'")
+    .run(req.session.user.id, c.id);
+  logAction(req, "idp.contrib_dismiss", `Dismissed a contribution on ${person.full_name}'s IDP`);
+  setFlash(req, "success", "Contribution dismissed.");
+  res.redirect(`/development/idp/${person.id}#contributions`);
 });
 
 router.post("/development/idp/:id/goals", requireLogin, (req, res) => {

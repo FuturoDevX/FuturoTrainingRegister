@@ -185,3 +185,32 @@ CREATE TABLE IF NOT EXISTS idp_notes (
   created_by INTEGER REFERENCES users(id),
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- Magic links: timed, no-login URLs scoped to ONE plan, so a supporting leader or the
+-- educator can submit input without an account. The token is a long random hex string;
+-- a link is valid only while now < expires_at and revoked_at IS NULL.
+CREATE TABLE IF NOT EXISTS idp_contrib_links (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  idp_id INTEGER NOT NULL REFERENCES idps(id),
+  token TEXT NOT NULL UNIQUE,
+  audience TEXT NOT NULL,                      -- 'educator' | 'leader' (informational)
+  expires_at TEXT NOT NULL,
+  created_by INTEGER REFERENCES users(id),
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  revoked_at TEXT
+);
+
+-- What people submit through a magic link. Lands as 'pending' and never touches the plan
+-- until the Centre Manager accepts it (which copies it into idp_notes) or dismisses it.
+CREATE TABLE IF NOT EXISTS idp_contributions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  idp_id INTEGER NOT NULL REFERENCES idps(id),
+  link_id INTEGER REFERENCES idp_contrib_links(id),
+  goal_id INTEGER REFERENCES idp_goals(id),   -- optional: about one goal
+  author_label TEXT NOT NULL,                 -- name the contributor typed in
+  body TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','accepted','dismissed')),
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  reviewed_by INTEGER REFERENCES users(id),
+  reviewed_at TEXT
+);
