@@ -9,7 +9,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 // The "latest IDP per person" subquery, reused across the dashboard counts.
 const LATEST_IDP = "(SELECT id FROM idps WHERE staff_id = s.id ORDER BY created_at DESC, id DESC LIMIT 1)";
 // Non-casual active staff — the population IDPs apply to (matches the reporting rules).
-const IDP_POP = "s.status = 'active' AND IFNULL(s.employment_type, '') != 'casual'";
+const IDP_POP = "s.status = 'active' AND IFNULL(s.employment_type, '') != 'casual' AND IFNULL(s.dev_role, '') != 'non_contact'";
 
 router.get("/home", requireLogin, (req, res) => {
   const scoped = scopedLocationId(req);

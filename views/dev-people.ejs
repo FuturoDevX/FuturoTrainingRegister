@@ -14,16 +14,11 @@
     <section class="card">
       <h2>People at <%= workingCentre.name %></h2>
       <p class="muted">
-        Set each person's development-role and room. The role is auto-suggested from their
-        Employment Hero job title — accept it with Save, or change it first. Roles marked
-        <span class="suggest-tag">suggested</span> aren't saved yet.
+        Set each person's development-role and room, then <strong>Save all changes</strong> at once.
+        Roles are auto-suggested from the Employment Hero job title; ones marked
+        <span class="suggest-tag">suggested</span> aren't saved yet. Support staff (chef,
+        kitchen, cleaning, admin) can be set to <strong>Non-contact</strong> to keep them out of IDP reporting.
       </p>
-
-      <%# Per-row forms declared up front; the row inputs below reference them by id. This
-          is the valid way to have one form per table row (a <form> can't wrap a <tr>). %>
-      <% staff.forEach(function(s) { %>
-        <form id="person-<%= s.id %>" method="POST" action="/development/people/<%= s.id %><%= isAdmin ? '?centre=' + workingCentreId : '' %>"></form>
-      <% }) %>
 
       <div data-filterable>
         <div class="toolbar">
@@ -33,51 +28,52 @@
           </div>
           <% if (suggestedCount > 0) { %>
             <form method="POST" action="/development/people/accept-suggested<%= isAdmin ? '?centre=' + workingCentreId : '' %>" class="inline">
-              <button type="submit" class="button btn-outline">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                Accept all <%= suggestedCount %> suggested role<%= suggestedCount === 1 ? '' : 's' %>
-              </button>
+              <button type="submit" class="button btn-outline">Accept all <%= suggestedCount %> suggested role<%= suggestedCount === 1 ? '' : 's' %></button>
             </form>
           <% } %>
         </div>
-        <div class="table-scroll">
-        <table>
-          <thead><tr><th>Name</th><th>EH job title</th><th>Development role</th><th>Room</th><th class="sticky-col">Save</th></tr></thead>
-          <tbody>
-            <% staff.forEach(function(s) { %>
-              <% var effectiveRole = s.dev_role || s.suggested || ""; %>
-              <tr data-search="<%= (s.full_name + ' ' + (s.position_title || '')).toLowerCase() %>">
-                <td><%= s.full_name %></td>
-                <td class="muted"><%= s.position_title || "—" %></td>
-                <td>
-                  <select name="dev_role" form="person-<%= s.id %>">
-                    <option value="">— not set —</option>
-                    <% roleOptions.forEach(function(ro) { %>
-                      <option value="<%= ro.key %>" <%= effectiveRole === ro.key ? "selected" : "" %>><%= ro.label %></option>
-                    <% }) %>
-                  </select>
-                  <% if (!s.dev_role && s.suggested) { %><span class="suggest-tag">suggested</span><% } %>
-                </td>
-                <td>
-                  <select name="room_id" form="person-<%= s.id %>">
-                    <option value="">— none —</option>
-                    <% rooms.forEach(function(r) { %>
-                      <option value="<%= r.id %>" <%= r.id === s.room_id ? "selected" : "" %>><%= r.name %></option>
-                    <% }) %>
-                  </select>
-                </td>
-                <td class="sticky-col">
-                  <button type="submit" form="person-<%= s.id %>" class="icon-link" title="Save" aria-label="Save">✓</button>
-                </td>
-              </tr>
-            <% }) %>
-            <% if (staff.length === 0) { %>
-              <tr><td colspan="5" class="muted">No active staff at <%= workingCentre.name %>. Run an Employment Hero sync from Admin.</td></tr>
-            <% } %>
-            <tr data-empty style="display:none"><td colspan="5" class="muted">No people match your search.</td></tr>
-          </tbody>
-        </table>
-        </div>
+
+        <form method="POST" action="/development/people/save-all<%= isAdmin ? '?centre=' + workingCentreId : '' %>">
+          <div class="saveall-bar">
+            <span class="muted" style="font-size:0.85rem">Changes aren't stored until you save.</span>
+            <button type="submit" class="button">Save all changes</button>
+          </div>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Name</th><th>EH job title</th><th>Development role</th><th>Room</th></tr></thead>
+              <tbody>
+                <% staff.forEach(function(s) { %>
+                  <% var effectiveRole = s.dev_role || s.suggested || ""; %>
+                  <tr data-search="<%= (s.full_name + ' ' + (s.position_title || '')).toLowerCase() %>">
+                    <td><%= s.full_name %></td>
+                    <td class="muted"><%= s.position_title || "—" %></td>
+                    <td>
+                      <select name="role_<%= s.id %>">
+                        <option value="">— not set —</option>
+                        <% roleOptions.forEach(function(ro) { %>
+                          <option value="<%= ro.key %>" <%= effectiveRole === ro.key ? "selected" : "" %>><%= ro.label %></option>
+                        <% }) %>
+                      </select>
+                      <% if (!s.dev_role && s.suggested) { %><span class="suggest-tag">suggested</span><% } %>
+                    </td>
+                    <td>
+                      <select name="room_<%= s.id %>">
+                        <option value="">— none —</option>
+                        <% rooms.forEach(function(r) { %>
+                          <option value="<%= r.id %>" <%= r.id === s.room_id ? "selected" : "" %>><%= r.name %></option>
+                        <% }) %>
+                      </select>
+                    </td>
+                  </tr>
+                <% }) %>
+                <% if (staff.length === 0) { %>
+                  <tr><td colspan="4" class="muted">No active staff at <%= workingCentre.name %>. Run an Employment Hero sync from Admin.</td></tr>
+                <% } %>
+                <tr data-empty style="display:none"><td colspan="4" class="muted">No people match your search.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </form>
       </div>
     </section>
   </main>

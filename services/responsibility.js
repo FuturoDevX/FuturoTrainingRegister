@@ -72,6 +72,8 @@ function deriveSupporters(person) {
     case "cm":
       slots = [orgSlot("Operations Manager", "om"), orgSlot("General Manager", "gm")];
       break;
+    case "non_contact":
+      return { slots: [], gaps: [] }; // support/non-contact staff aren't on the development track
     default:
       return { slots: [], gaps: ["No development-role set for this person"] };
   }

@@ -27,7 +27,7 @@ function idpAggregate(groupExpr, joinAndWhere, params) {
     FROM staff s
     ${joinAndWhere}
     LEFT JOIN idps cur ON cur.id = (SELECT id FROM idps WHERE staff_id = s.id ORDER BY created_at DESC, id DESC LIMIT 1)
-    WHERE s.status = 'active' AND IFNULL(s.employment_type, '') != 'casual' ${params.extraWhere || ""}
+    WHERE s.status = 'active' AND IFNULL(s.employment_type, '') != 'casual' AND IFNULL(s.dev_role, '') != 'non_contact' ${params.extraWhere || ""}
     GROUP BY ${groupExpr}
     ORDER BY group_name
   `).all(...(params.args || []));
@@ -95,7 +95,7 @@ router.get("/report/idp/centre/:id/room/:roomId", requireLogin, (req, res) => {
       (SELECT COUNT(*) FROM idp_goals g WHERE g.idp_id = cur.id) AS goal_count
     FROM staff s
     LEFT JOIN idps cur ON cur.id = (SELECT id FROM idps WHERE staff_id = s.id ORDER BY created_at DESC, id DESC LIMIT 1)
-    WHERE s.location_id = ? AND s.status = 'active' AND IFNULL(s.employment_type, '') != 'casual' ${roomFilter}
+    WHERE s.location_id = ? AND s.status = 'active' AND IFNULL(s.employment_type, '') != 'casual' AND IFNULL(s.dev_role, '') != 'non_contact' ${roomFilter}
     ORDER BY s.full_name
   `).all(...args);
   const today = new Date().toISOString().slice(0, 10);

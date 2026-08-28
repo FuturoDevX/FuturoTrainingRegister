@@ -175,6 +175,34 @@ router.post("/development/people/accept-suggested", requireLogin, (req, res) => 
   res.redirect(`/development/people${scoped ? "" : "?centre=" + centreId}`);
 });
 
+// Save every row at once — the whole People table posts role_<id> / room_<id> fields.
+router.post("/development/people/save-all", requireLogin, (req, res) => {
+  const scoped = scopedLocationId(req);
+  const centreId = scoped || (req.query.centre ? parseInt(req.query.centre, 10) : null);
+  if (!centreId) return res.status(400).render("error", { message: "A centre is required." });
+
+  const staff = db.prepare("SELECT id FROM staff WHERE location_id = ? AND status = 'active' AND IFNULL(employment_type,'') != 'casual'").all(centreId);
+  const roomOk = db.prepare("SELECT 1 FROM rooms WHERE id = ? AND location_id = ?");
+  const update = db.prepare("UPDATE staff SET dev_role = ?, room_id = ? WHERE id = ?");
+  let saved = 0;
+  const txn = db.transaction(() => {
+    for (const s of staff) {
+      const rawRole = req.body["role_" + s.id];
+      const rawRoom = req.body["room_" + s.id];
+      if (rawRole === undefined && rawRoom === undefined) continue; // row wasn't in the form
+      const devRole = rawRole && isValidDevRole(rawRole) ? rawRole : null;
+      const roomId = rawRoom && roomOk.get(parseInt(rawRoom, 10), centreId) ? parseInt(rawRoom, 10) : null;
+      update.run(devRole, roomId, s.id);
+      saved++;
+    }
+  });
+  txn();
+
+  logAction(req, "staff.dev_role_saveall", `Saved development role/room for ${saved} staff`);
+  setFlash(req, "success", `Saved — ${saved} staff updated.`);
+  res.redirect(`/development/people${scoped ? "" : "?centre=" + centreId}`);
+});
+
 router.post("/development/people/:id", requireLogin, (req, res) => {
   const person = db.prepare("SELECT * FROM staff WHERE id = ?").get(req.params.id);
   if (!person) return res.status(404).render("error", { message: "Staff member not found." });
@@ -199,7 +227,7 @@ router.get("/development/plans", requireLogin, (req, res) => {
     FROM staff s
     LEFT JOIN rooms r ON r.id = s.room_id
     LEFT JOIN idps i ON i.id = (SELECT id FROM idps WHERE staff_id = s.id ORDER BY created_at DESC, id DESC LIMIT 1)
-    WHERE s.location_id = ? AND s.status = 'active' AND IFNULL(s.employment_type, '') != 'casual'
+    WHERE s.location_id = ? AND s.status = 'active' AND IFNULL(s.employment_type, '') != 'casual' AND IFNULL(s.dev_role, '') != 'non_contact'
     ORDER BY s.full_name
   `).all(ctx.workingCentreId);
   const today = new Date().toISOString().slice(0, 10);
