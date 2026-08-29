@@ -102,6 +102,10 @@ function upsertStaff(record) {
       position_title = excluded.position_title,
       employment_type = COALESCE(excluded.employment_type, staff.employment_type),
       status = excluded.status,
+      -- If the person moved centres, drop their room (rooms belong to a centre) so they are
+      -- not left assigned to a room at their old centre. dev_role is centre-independent and
+      -- deliberately kept. IS NOT compares safely across NULLs.
+      room_id = CASE WHEN staff.location_id IS NOT excluded.location_id THEN NULL ELSE staff.room_id END,
       updated_at = datetime('now')
   `).run({
     employee_id: String(record.EmployeeId),

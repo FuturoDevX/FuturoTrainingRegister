@@ -19,6 +19,10 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 18.20.4
+      # Turns on the app's production guards: HTTPS-only ("secure") session cookies and a
+      # hard refusal to boot without SESSION_SECRET set. Also puts Express in prod mode.
+      - key: NODE_ENV
+        value: production
       - key: PORT
         value: 3001
       - key: DB_PATH

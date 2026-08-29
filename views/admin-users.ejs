@@ -69,7 +69,7 @@
               <% locations.forEach(function(l) { %><option value="<%= l.id %>"><%= l.name %></option><% }) %>
             </select>
           </label>
-          <label>Password<input type="text" name="password" placeholder="Demo1234! if left blank"></label>
+          <label>Password<input type="text" name="password" placeholder="At least 8 characters" minlength="8" required></label>
           <button type="submit" class="full">Create login</button>
         </form>
       </details>

@@ -5,6 +5,7 @@ const { requireLogin, requireAdmin } = require("../middleware/auth");
 const { setFlash } = require("../middleware/flash");
 const { logAction } = require("../services/audit");
 const { runSync } = require("../services/employmentHero");
+const { runBackup, backupDir } = require("../services/backup");
 
 // Render's persistent disk has no automatic backups (unlike its managed Postgres, which
 // gets point-in-time recovery) — this is the only backup this app has, so it matters
@@ -36,15 +37,31 @@ router.get("/admin/users", (req, res) => {
 });
 
 router.post("/admin/users", (req, res) => {
-  const { email, full_name, role, location_id, password } = req.body;
+  const { email, full_name, role, location_id } = req.body;
   if (role === "centre_manager" && !location_id) {
     return res.status(400).render("error", { message: "A centre is required for a Centre Manager login." });
   }
-  const hash = bcrypt.hashSync(password || "Demo1234!", 10);
-  db.prepare(`
-    INSERT INTO users (email, password_hash, role, location_id, full_name)
-    VALUES (?, ?, ?, ?, ?)
-  `).run(email, hash, role, role === "centre_manager" ? parseInt(location_id, 10) : null, full_name);
+  // Require a real password on create — no weak silent default. Matches the reset route's rule.
+  const password = (req.body.password || "").trim();
+  if (password.length < 8) {
+    setFlash(req, "error", `Login not created for ${full_name || email} — set a password of at least 8 characters.`);
+    return res.redirect("/admin/users");
+  }
+  const hash = bcrypt.hashSync(password, 10);
+  try {
+    db.prepare(`
+      INSERT INTO users (email, password_hash, role, location_id, full_name)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(email, hash, role, role === "centre_manager" ? parseInt(location_id, 10) : null, full_name);
+  } catch (err) {
+    // email is UNIQUE — surface a duplicate as a friendly message instead of a 500,
+    // matching how the edit route already handles it.
+    if (err.code === "SQLITE_CONSTRAINT_UNIQUE") {
+      setFlash(req, "error", `A login already exists for ${email}.`);
+      return res.redirect("/admin/users");
+    }
+    throw err;
+  }
   logAction(req, "user.create", `Created ${role} login for ${full_name} (${email})`);
   setFlash(req, "success", `Login created for ${full_name} (${email}).`);
   res.redirect("/admin/users");
@@ -155,8 +172,32 @@ router.post("/admin/sync", async (req, res) => {
   res.redirect("/admin/sync");
 });
 
+// Lists the rotating snapshots on disk (newest first) for the backup page.
+function listSnapshots() {
+  const fs = require("fs");
+  const path = require("path");
+  let dir;
+  try { dir = backupDir(); } catch { return []; }
+  if (!fs.existsSync(dir)) return [];
+  return fs
+    .readdirSync(dir)
+    .filter((f) => f.startsWith("training-") && f.endsWith(".db"))
+    .map((f) => {
+      const st = fs.statSync(path.join(dir, f));
+      return { name: f, mtime: st.mtimeMs, taken: new Date(st.mtime).toISOString().slice(0, 16).replace("T", " "), size: `${(st.size / 1048576).toFixed(1)} MB` };
+    })
+    .sort((a, b) => b.mtime - a.mtime);
+}
+
 router.get("/admin/backup", (req, res) => {
-  res.render("admin-backup", { activeTab: "backup" });
+  res.render("admin-backup", { activeTab: "backup", snapshots: listSnapshots() });
+});
+
+router.post("/admin/backup/run", async (req, res) => {
+  const r = await runBackup();
+  logAction(req, "backup.manual", r.ok ? `Created snapshot ${r.file}` : `Snapshot failed: ${r.error}`);
+  setFlash(req, r.ok ? "success" : "error", r.ok ? `Snapshot created: ${r.file}` : `Snapshot failed: ${r.error}`);
+  res.redirect("/admin/backup");
 });
 
 router.get("/admin/export", (req, res) => {

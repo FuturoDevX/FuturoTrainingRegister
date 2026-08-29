@@ -12,13 +12,36 @@
     <%- include("partials/admin-tabs", { activeTab }) %>
 
     <section class="card">
-      <h2>Backup</h2>
+      <h2>Download a backup</h2>
       <p class="muted">
-        Render's disk has no automatic backups — this downloads a complete, self-contained
-        copy of the database as it is right now. Worth doing every so often, and definitely
-        before any big change (e.g. a fresh EH sync or bulk data entry).
+        Downloads a complete, self-contained copy of the database as it is right now. Worth
+        doing before any big change (e.g. a fresh EH sync or bulk data entry).
       </p>
       <a class="button" href="/admin/export">Download database backup</a>
+    </section>
+
+    <section class="card">
+      <h2>Automatic snapshots</h2>
+      <p class="muted">
+        A snapshot is taken automatically every night and kept for two weeks, so a bad change
+        or accidental delete can be rolled back. Snapshots are stored on the server's disk —
+        for off-site safety, still download a copy above periodically. You can also take one now:
+      </p>
+      <form method="POST" action="/admin/backup/run" class="inline" style="margin-bottom:14px">
+        <button type="submit" class="button">Create snapshot now</button>
+      </form>
+      <% if (snapshots && snapshots.length) { %>
+        <table>
+          <thead><tr><th>Snapshot</th><th>Taken</th><th>Size</th></tr></thead>
+          <tbody>
+            <% snapshots.forEach(function(s) { %>
+              <tr><td><%= s.name %></td><td><%= s.taken %></td><td><%= s.size %></td></tr>
+            <% }) %>
+          </tbody>
+        </table>
+      <% } else { %>
+        <p class="muted">No snapshots yet — the first runs tonight, or take one now.</p>
+      <% } %>
     </section>
   </main>
 </body>
