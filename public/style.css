@@ -180,6 +180,22 @@ body {
 .add-goal > summary { list-style: none; display: inline-flex; }
 .add-goal > summary::-webkit-details-marker { display: none; }
 
+/* Reflection-first foundation: areas for development + goals grouped under them. */
+.area-list { list-style: none; padding: 0; margin: 0 0 12px; }
+.area-item { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f0f2f0; }
+.area-item:last-child { border-bottom: none; }
+.area-add { display: flex; gap: 8px; flex-wrap: wrap; }
+.area-add input { flex: 1; min-width: 200px; }
+.goal-group { margin-bottom: 14px; }
+.group-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 12px 0 4px; border-bottom: 1px solid #eef1ef; }
+.area-pill { background: #e4f0ec; color: var(--brand-dark); font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; padding: 2px 7px; border-radius: 999px; }
+.badge.horizon-tag { background: #eef3f9; color: #345; }
+
+/* Reflection foundation on the printable per-person report. */
+.idp-foundation { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 6px 0 14px; }
+.idp-foundation dt { font-weight: 600; color: var(--brand-dark); }
+.idp-foundation dd { margin: 0; white-space: pre-wrap; }
+
 /* Contributions */
 .invite-row { display: flex; gap: 12px; flex-wrap: wrap; }
 .invite { flex: 1; min-width: 220px; border: 1px solid var(--border); border-radius: 8px; padding: 13px 15px; }

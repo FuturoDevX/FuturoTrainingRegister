@@ -65,3 +65,22 @@ if (idpCols.length && !idpCols.includes("carried_from_id")) {
   db.exec("ALTER TABLE idps ADD COLUMN carried_from_id INTEGER REFERENCES idps(id)");
   console.log("Migrated: added idps.carried_from_id");
 }
+// Reflection-first foundation — a plan captures the person's strengths and aspirations
+// alongside its named areas for development (idp_dev_areas, a new table covered by
+// schema.sql's CREATE TABLE IF NOT EXISTS), and goals link to an area they address.
+if (idpCols.length && !idpCols.includes("strengths")) {
+  db.exec("ALTER TABLE idps ADD COLUMN strengths TEXT");
+  console.log("Migrated: added idps.strengths");
+}
+if (idpCols.length && !idpCols.includes("aspirations")) {
+  db.exec("ALTER TABLE idps ADD COLUMN aspirations TEXT");
+  console.log("Migrated: added idps.aspirations");
+}
+if (goalCols.length && !goalCols.includes("dev_area_id")) {
+  db.exec("ALTER TABLE idp_goals ADD COLUMN dev_area_id INTEGER REFERENCES idp_dev_areas(id)");
+  console.log("Migrated: added idp_goals.dev_area_id");
+}
+if (goalCols.length && !goalCols.includes("horizon")) {
+  db.exec("ALTER TABLE idp_goals ADD COLUMN horizon TEXT");
+  console.log("Migrated: added idp_goals.horizon");
+}

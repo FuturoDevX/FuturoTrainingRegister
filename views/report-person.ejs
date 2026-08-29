@@ -28,19 +28,26 @@
         <% if (idp.review_date) { %><span class="muted">Next review: <%= idp.review_date %></span><% } %>
       </p>
       <% if (idp.focus) { %><p><%= idp.focus %></p><% } %>
+      <% if (idp.strengths || idp.aspirations) { %>
+        <dl class="idp-foundation">
+          <% if (idp.strengths) { %><dt>Strengths</dt><dd><%= idp.strengths %></dd><% } %>
+          <% if (idp.aspirations) { %><dt>Aspirations</dt><dd><%= idp.aspirations %></dd><% } %>
+        </dl>
+      <% } %>
       <div class="table-scroll">
         <table>
-          <thead><tr><th>Goal</th><th>Target</th><th>NQS</th><th>Status</th></tr></thead>
+          <thead><tr><th>Area for development</th><th>Goal</th><th>Target</th><th>NQS</th><th>Status</th></tr></thead>
           <tbody>
             <% goals.forEach(function(g) { %>
               <tr>
+                <td><%= g.area_title || "—" %></td>
                 <td><%= g.title %></td>
                 <td><%= g.target_date || "—" %></td>
                 <td><% if (g.nqs_element_code) { %><span class="badge nqs-tag" title="<%= nqs.elementLabel(g.nqs_element_code) %>"><%= g.nqs_element_code %></span><% } else { %>—<% } %></td>
                 <td><span class="badge status-<%= g.status %>"><%= goalStatusLabel[g.status] %></span></td>
               </tr>
             <% }) %>
-            <% if (goals.length === 0) { %><tr><td colspan="4" class="muted">No goals recorded.</td></tr><% } %>
+            <% if (goals.length === 0) { %><tr><td colspan="5" class="muted">No goals recorded.</td></tr><% } %>
           </tbody>
         </table>
       </div>

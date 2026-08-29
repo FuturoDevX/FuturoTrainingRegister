@@ -239,6 +239,14 @@ router.get("/development/plans", requireLogin, (req, res) => {
 });
 
 // ---- Per-person IDP detail ------------------------------------------------
+// Returns the given dev-area id only if it's a real area on THIS plan, else null — so a
+// goal can never point at another plan's area (or a stale/blank value).
+function validAreaId(raw, idpId) {
+  if (!raw) return null;
+  const a = db.prepare("SELECT id FROM idp_dev_areas WHERE id = ? AND idp_id = ?").get(parseInt(raw, 10), idpId);
+  return a ? a.id : null;
+}
+
 function idpSupporters(idp, person) {
   if (idp && idp.supporters_mode === "manual") {
     const people = db.prepare(`
@@ -259,6 +267,13 @@ router.get("/development/idp/:staffId", requireLogin, (req, res) => {
   const idp = currentIdp(person.id);
   const locked = !!(idp && idp.status === "completed");
   const goals = idp ? db.prepare("SELECT * FROM idp_goals WHERE idp_id = ? ORDER BY created_at").all(idp.id) : [];
+  // Areas for development named on this plan, and the goals grouped under the area each
+  // one addresses (goals with no area fall into a trailing "Other goals" group). This is
+  // what makes a goal read as "how we'll act on area X" rather than a floating item.
+  const devAreas = idp ? db.prepare("SELECT * FROM idp_dev_areas WHERE idp_id = ? ORDER BY sort_order, id").all(idp.id) : [];
+  const goalGroups = devAreas.map((a) => ({ area: a, goals: goals.filter((g) => g.dev_area_id === a.id) }));
+  const orphanGoals = goals.filter((g) => !devAreas.some((a) => a.id === g.dev_area_id));
+  if (orphanGoals.length) goalGroups.push({ area: null, goals: orphanGoals });
   const supporters = idpSupporters(idp, person);
   const notes = idp ? db.prepare("SELECT * FROM idp_notes WHERE idp_id = ? ORDER BY created_at DESC, id DESC").all(idp.id) : [];
   const history = idpHistory(person.id, idp ? idp.id : 0);
@@ -272,7 +287,7 @@ router.get("/development/idp/:staffId", requireLogin, (req, res) => {
   const manualIds = idp && supporters.mode === "manual" ? new Set(supporters.manual.map((s) => s.id)) : new Set();
 
   res.render("dev-idp", {
-    person, idp, locked, goals, supporters, notes, history, centreStaff, manualIds, links, pending,
+    person, idp, locked, goals, devAreas, goalGroups, supporters, notes, history, centreStaff, manualIds, links, pending,
     roleLabel: person.dev_role ? ROLE_LABEL[person.dev_role] : null,
     goalNameById: Object.fromEntries(goals.map((g) => [g.id, g.title])),
     qualityAreas: nqs.QUALITY_AREAS,
@@ -312,10 +327,12 @@ router.post("/development/idp/:id", requireLogin, (req, res) => {
   }
 
   // Completion is its own action (/complete) — the dropdown only toggles draft/active.
+  // The reflection (focus/strengths/aspirations) has its own route so its form and this
+  // settings form never overwrite each other's fields with blanks.
   const status = ["draft", "active"].includes(req.body.status) ? req.body.status : idp.status;
   const supportersMode = req.body.supporters_mode === "manual" ? "manual" : "auto";
-  db.prepare("UPDATE idps SET focus = ?, status = ?, review_date = ?, supporters_mode = ?, updated_at = datetime('now') WHERE id = ?")
-    .run(req.body.focus || null, status, req.body.review_date || null, supportersMode, idp.id);
+  db.prepare("UPDATE idps SET status = ?, review_date = ?, supporters_mode = ?, updated_at = datetime('now') WHERE id = ?")
+    .run(status, req.body.review_date || null, supportersMode, idp.id);
 
   // Replace manual supporters only when in manual mode; leaving auto clears none but
   // simply stops consulting the table.
@@ -333,6 +350,72 @@ router.post("/development/idp/:id", requireLogin, (req, res) => {
   res.redirect(`/development/idp/${person.id}`);
 });
 
+// The reflection foundation — the plan's headline plus the person's strengths and
+// aspirations. Kept separate from settings so goals flow from a considered starting point
+// (see /areas for the named development areas that sit alongside these).
+router.post("/development/idp/:id/reflection", requireLogin, (req, res) => {
+  const idp = db.prepare("SELECT * FROM idps WHERE id = ?").get(req.params.id);
+  if (!idp) return res.status(404).render("error", { message: "IDP not found." });
+  const person = db.prepare("SELECT * FROM staff WHERE id = ?").get(idp.staff_id);
+  if (!canManagePerson(req, person)) return res.status(403).render("error", { message: "You can only manage your own centre's staff." });
+  if (idp.status === "completed") {
+    setFlash(req, "error", "This plan is completed and locked. Reopen it to edit the reflection.");
+    return res.redirect(`/development/idp/${person.id}`);
+  }
+
+  db.prepare("UPDATE idps SET focus = ?, strengths = ?, aspirations = ?, updated_at = datetime('now') WHERE id = ?")
+    .run(req.body.focus || null, req.body.strengths || null, req.body.aspirations || null, idp.id);
+  logAction(req, "idp.reflection", `Updated the reflection on ${person.full_name}'s IDP`);
+  setFlash(req, "success", "Development focus saved.");
+  res.redirect(`/development/idp/${person.id}#focus`);
+});
+
+// Add an area for development to a plan — the growth areas that goals then address.
+router.post("/development/idp/:id/areas", requireLogin, (req, res) => {
+  const idp = db.prepare("SELECT * FROM idps WHERE id = ?").get(req.params.id);
+  if (!idp) return res.status(404).render("error", { message: "IDP not found." });
+  const person = db.prepare("SELECT * FROM staff WHERE id = ?").get(idp.staff_id);
+  if (!canManagePerson(req, person)) return res.status(403).render("error", { message: "You can only manage your own centre's staff." });
+  if (idp.status === "completed") {
+    setFlash(req, "error", "This plan is completed and locked. Reopen it to change development areas.");
+    return res.redirect(`/development/idp/${person.id}`);
+  }
+
+  const title = (req.body.title || "").trim();
+  if (!title) {
+    setFlash(req, "error", "An area for development needs a title.");
+    return res.redirect(`/development/idp/${person.id}#focus`);
+  }
+  const nextOrder = db.prepare("SELECT COALESCE(MAX(sort_order), -1) + 1 AS n FROM idp_dev_areas WHERE idp_id = ?").get(idp.id).n;
+  db.prepare("INSERT INTO idp_dev_areas (idp_id, title, sort_order) VALUES (?, ?, ?)").run(idp.id, title, nextOrder);
+  logAction(req, "idp.area_add", `Added development area "${title}" to ${person.full_name}'s IDP`);
+  setFlash(req, "success", `Area for development "${title}" added.`);
+  res.redirect(`/development/idp/${person.id}#focus`);
+});
+
+// Remove an area — its goals aren't deleted, they just detach (dev_area_id -> NULL) and
+// fall into the "Other goals" group, so nothing on the plan is lost with the area.
+router.post("/development/areas/:id/delete", requireLogin, (req, res) => {
+  const area = db.prepare("SELECT * FROM idp_dev_areas WHERE id = ?").get(req.params.id);
+  if (!area) return res.status(404).render("error", { message: "Area not found." });
+  const idp = db.prepare("SELECT * FROM idps WHERE id = ?").get(area.idp_id);
+  const person = db.prepare("SELECT * FROM staff WHERE id = ?").get(idp.staff_id);
+  if (!canManagePerson(req, person)) return res.status(403).render("error", { message: "You can only manage your own centre's staff." });
+  if (idp.status === "completed") {
+    setFlash(req, "error", "This plan is completed and locked. Reopen it to change development areas.");
+    return res.redirect(`/development/idp/${person.id}`);
+  }
+
+  const txn = db.transaction(() => {
+    db.prepare("UPDATE idp_goals SET dev_area_id = NULL WHERE dev_area_id = ?").run(area.id);
+    db.prepare("DELETE FROM idp_dev_areas WHERE id = ?").run(area.id);
+  });
+  txn();
+  logAction(req, "idp.area_delete", `Removed development area "${area.title}" from ${person.full_name}'s IDP`);
+  setFlash(req, "success", `Area "${area.title}" removed. Any goals under it kept, now ungrouped.`);
+  res.redirect(`/development/idp/${person.id}#focus`);
+});
+
 // Delete a plan entirely — for a mistake (wrong person, accidental create). Distinct
 // from Complete (which keeps it as history). Cascades to everything hanging off the plan
 // so nothing is orphaned. Confirmed with a two-step reveal in the UI, not a dialog.
@@ -348,6 +431,7 @@ router.post("/development/idp/:id/delete", requireLogin, (req, res) => {
     db.prepare("DELETE FROM idp_contrib_links WHERE idp_id = ?").run(idp.id);
     db.prepare("DELETE FROM idp_supporters WHERE idp_id = ?").run(idp.id);
     db.prepare("DELETE FROM idp_goals WHERE idp_id = ?").run(idp.id);
+    db.prepare("DELETE FROM idp_dev_areas WHERE idp_id = ?").run(idp.id);
     // Any later cycle that carried forward from this one loses only the lineage pointer.
     db.prepare("UPDATE idps SET carried_from_id = NULL WHERE carried_from_id = ?").run(idp.id);
     db.prepare("DELETE FROM idps WHERE id = ?").run(idp.id);
@@ -406,16 +490,24 @@ router.post("/development/idp/:id/start-next", requireLogin, (req, res) => {
   // Carry forward the goals that weren't finished (not achieved, not dropped), resetting
   // them into the new cycle so progress continues rather than restarting from scratch.
   const carry = db.prepare("SELECT * FROM idp_goals WHERE idp_id = ? AND status IN ('not_started','in_progress') ORDER BY created_at").all(prev.id);
+  const prevAreas = db.prepare("SELECT * FROM idp_dev_areas WHERE idp_id = ? ORDER BY sort_order, id").all(prev.id);
   let newId;
   const txn = db.transaction(() => {
-    newId = db.prepare("INSERT INTO idps (staff_id, status, supporters_mode, carried_from_id, created_by) VALUES (?, 'draft', ?, ?, ?)")
-      .run(person.id, prev.supporters_mode, prev.id, req.session.user.id).lastInsertRowid;
+    // Strengths/aspirations carry over as a starting point for the review conversation; the
+    // reflection evolves rather than starting blank each cycle.
+    newId = db.prepare("INSERT INTO idps (staff_id, status, strengths, aspirations, supporters_mode, carried_from_id, created_by) VALUES (?, 'draft', ?, ?, ?, ?, ?)")
+      .run(person.id, prev.strengths, prev.aspirations, prev.supporters_mode, prev.id, req.session.user.id).lastInsertRowid;
+    // Copy the development areas into the new cycle, keeping a map old->new so carried goals
+    // keep pointing at the right area (the new plan owns fresh area rows).
+    const areaMap = new Map();
+    const insArea = db.prepare("INSERT INTO idp_dev_areas (idp_id, title, sort_order) VALUES (?, ?, ?)");
+    for (const a of prevAreas) areaMap.set(a.id, insArea.run(newId, a.title, a.sort_order).lastInsertRowid);
     const ins = db.prepare(`
-      INSERT INTO idp_goals (idp_id, title, specific, measurable, achievable, relevant, target_date, nqs_element_code, resources, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO idp_goals (idp_id, dev_area_id, horizon, title, specific, measurable, achievable, relevant, target_date, nqs_element_code, resources, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     for (const g of carry) {
-      ins.run(newId, g.title, g.specific, g.measurable, g.achievable, g.relevant, g.target_date, g.nqs_element_code, g.resources, g.status);
+      ins.run(newId, g.dev_area_id ? areaMap.get(g.dev_area_id) || null : null, g.horizon, g.title, g.specific, g.measurable, g.achievable, g.relevant, g.target_date, g.nqs_element_code, g.resources, g.status);
     }
   });
   txn();
@@ -533,10 +625,12 @@ router.post("/development/idp/:id/goals", requireLogin, (req, res) => {
     return res.redirect(`/development/idp/${person.id}`);
   }
   const nqsCode = req.body.nqs_element_code && nqs.isValidElementCode(req.body.nqs_element_code) ? req.body.nqs_element_code : null;
+  const areaId = validAreaId(req.body.dev_area_id, idp.id);
+  const horizon = ["short", "developmental"].includes(req.body.horizon) ? req.body.horizon : null;
   db.prepare(`
-    INSERT INTO idp_goals (idp_id, title, specific, measurable, achievable, relevant, target_date, nqs_element_code, resources)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(idp.id, title, req.body.specific || null, req.body.measurable || null, req.body.achievable || null, req.body.relevant || null, req.body.target_date || null, nqsCode, req.body.resources || null);
+    INSERT INTO idp_goals (idp_id, dev_area_id, horizon, title, specific, measurable, achievable, relevant, target_date, nqs_element_code, resources)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(idp.id, areaId, horizon, title, req.body.specific || null, req.body.measurable || null, req.body.achievable || null, req.body.relevant || null, req.body.target_date || null, nqsCode, req.body.resources || null);
   logAction(req, "idp.goal_add", `Added goal "${title}" to ${person.full_name}'s IDP`);
   setFlash(req, "success", `Goal "${title}" added.`);
   res.redirect(`/development/idp/${person.id}`);
@@ -555,11 +649,13 @@ router.post("/development/goals/:id", requireLogin, (req, res) => {
 
   const status = ["not_started", "in_progress", "achieved", "dropped"].includes(req.body.status) ? req.body.status : goal.status;
   const nqsCode = req.body.nqs_element_code && nqs.isValidElementCode(req.body.nqs_element_code) ? req.body.nqs_element_code : null;
+  const areaId = validAreaId(req.body.dev_area_id, idp.id);
+  const horizon = ["short", "developmental"].includes(req.body.horizon) ? req.body.horizon : null;
   db.prepare(`
-    UPDATE idp_goals SET title = ?, specific = ?, measurable = ?, achievable = ?, relevant = ?,
+    UPDATE idp_goals SET dev_area_id = ?, horizon = ?, title = ?, specific = ?, measurable = ?, achievable = ?, relevant = ?,
       target_date = ?, nqs_element_code = ?, status = ?, progress_notes = ?, resources = ?, updated_at = datetime('now')
     WHERE id = ?
-  `).run(req.body.title || goal.title, req.body.specific || null, req.body.measurable || null, req.body.achievable || null,
+  `).run(areaId, horizon, req.body.title || goal.title, req.body.specific || null, req.body.measurable || null, req.body.achievable || null,
     req.body.relevant || null, req.body.target_date || null, nqsCode, status, req.body.progress_notes || null, req.body.resources || null, goal.id);
   logAction(req, "idp.goal_update", `Updated goal "${goal.title}" (${status}) on ${person.full_name}'s IDP`);
   setFlash(req, "success", "Goal updated.");

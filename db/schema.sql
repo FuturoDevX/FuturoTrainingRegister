@@ -132,6 +132,10 @@ CREATE TABLE IF NOT EXISTS idps (
   staff_id INTEGER NOT NULL REFERENCES staff(id),
   status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','active','completed')),
   focus TEXT,                          -- short overall summary of what this plan is about
+  -- Reflection-first foundation: a proper IDP starts from where the person is and where
+  -- they want to go, and the goals fall out of that (rather than a blank shell + goals).
+  strengths TEXT,                      -- what they do well
+  aspirations TEXT,                    -- where they want to head (this cycle + longer term)
   review_date TEXT,                    -- next review due (ISO date); drives overdue reporting
   -- 'auto' derives supporters live from room/centre/org structure (the default and the
   -- whole point of the responsibility engine); 'manual' uses the idp_supporters rows
@@ -144,12 +148,27 @@ CREATE TABLE IF NOT EXISTS idps (
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Areas for development named on a plan (2–4 typically). These are the "growth areas"
+-- surfaced by the reflection step; each goal addresses one of them, so a goal reads as
+-- "how we'll act on area X" rather than a floating item. Deleting an area nulls its goals'
+-- dev_area_id (handled in routes/development.js) so goals aren't lost with the area.
+CREATE TABLE IF NOT EXISTS idp_dev_areas (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  idp_id INTEGER NOT NULL REFERENCES idps(id),
+  title TEXT NOT NULL,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- SMART goals belonging to an IDP. Each goal carries the five SMART fields, an optional
 -- link to an NQS element (reusing services/nqs.js), a running progress note, and its own
--- status independent of the plan's overall status.
+-- status independent of the plan's overall status. dev_area_id ties the goal to the area
+-- for development it addresses; horizon marks whether it's for this cycle or longer-term.
 CREATE TABLE IF NOT EXISTS idp_goals (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   idp_id INTEGER NOT NULL REFERENCES idps(id),
+  dev_area_id INTEGER REFERENCES idp_dev_areas(id),  -- which area for development this goal addresses
+  horizon TEXT,                        -- 'short' (this cycle) | 'developmental' (longer term) | NULL
   title TEXT NOT NULL,
   specific TEXT,
   measurable TEXT,

@@ -195,7 +195,13 @@ router.get("/report/person/:id", requireLogin, (req, res) => {
   // Phase 2: surface the person's current IDP + goals on the same report, so training
   // and development sit together (the report brief's "IDPs + their training hours").
   const idp = db.prepare("SELECT * FROM idps WHERE staff_id = ? ORDER BY created_at DESC, id DESC LIMIT 1").get(staffMember.id);
-  const goals = idp ? db.prepare("SELECT * FROM idp_goals WHERE idp_id = ? ORDER BY created_at").all(idp.id) : [];
+  // Goals carry their area-for-development title so the report groups the same way the IDP
+  // page does (reflection-first: each goal reads against the growth area it addresses).
+  const goals = idp ? db.prepare(`
+    SELECT g.*, a.title AS area_title FROM idp_goals g
+    LEFT JOIN idp_dev_areas a ON a.id = g.dev_area_id
+    WHERE g.idp_id = ? ORDER BY a.sort_order IS NULL, a.sort_order, g.created_at
+  `).all(idp.id) : [];
 
   // Completed cycles (everything except the current plan), each with its goals — so the
   // printable record shows development across cycles, matching the IDP page's History tab.

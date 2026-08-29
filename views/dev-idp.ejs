@@ -10,6 +10,7 @@
   <main class="container">
     <%
       var goalStatusLabel = { not_started: "Not started", in_progress: "In progress", achieved: "Achieved", dropped: "Dropped" };
+      var horizonLabel = { short: "This cycle", developmental: "Longer term" };
       var today = new Date().toISOString().slice(0, 10);
       var achievedCount = goals.filter(function (g) { return g.status === "achieved"; }).length;
       var overdue = idp && idp.status === "active" && idp.review_date && idp.review_date < today;
@@ -57,6 +58,7 @@
           <div class="glance">
             <div><div class="g-lbl">Focus</div><div class="g-val"><%= idp.focus || "—" %></div></div>
             <div><div class="g-lbl">Next review</div><div class="g-val"><%= idp.review_date || "—" %><% if (overdue) { %> <span class="badge overdue">overdue</span><% } %></div></div>
+            <div><div class="g-lbl">Development areas</div><div class="g-val"><%= devAreas.length %></div></div>
             <div><div class="g-lbl">Goals</div><div class="g-val"><%= goals.length %><% if (goals.length) { %> &middot; <%= achievedCount %> achieved<% } %></div></div>
           </div>
           <% if (!locked) { %>
@@ -65,10 +67,8 @@
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
                 Edit plan
               </summary>
+              <p class="muted" style="font-size:0.8rem;margin:12px 0 0">Plan settings. The development focus, strengths and areas live in the <strong>Focus</strong> tab below.</p>
               <form method="POST" action="/development/idp/<%= idp.id %>" class="form-grid" style="margin-top:12px">
-                <label class="full">Focus (what this plan is about)
-                  <textarea name="focus" rows="2" placeholder="e.g. Building confidence leading room programming"><%= idp.focus || "" %></textarea>
-                </label>
                 <label>Status
                   <select name="status">
                     <% ["draft","active"].forEach(function(st) { %>
@@ -120,11 +120,68 @@
       <!-- Tabbed content -->
       <div data-tabs>
         <nav class="idp-tabs">
+          <button class="idp-tab" data-tab="focus">Focus</button>
           <button class="idp-tab" data-tab="goals">Goals</button>
           <button class="idp-tab" data-tab="log">Progress log</button>
           <button class="idp-tab" data-tab="contributions">Contributions<% if (pending.length) { %> <span class="tab-count"><%= pending.length %></span><% } %></button>
           <% if (history.length) { %><button class="idp-tab" data-tab="history">History</button><% } %>
         </nav>
+
+        <!-- FOCUS: the reflection foundation the goals flow from -->
+        <section data-tab-panel="focus" id="focus">
+          <h2 style="margin:0 0 4px;font-size:18px">Development focus</h2>
+          <p class="muted" style="margin:0 0 12px">Start here. Note what <%= person.full_name.split(" ")[0] %> does well, the areas to develop, and where they want to head — the goals in the next tab flow from these.</p>
+
+          <% if (!locked) { %>
+            <form method="POST" action="/development/idp/<%= idp.id %>/reflection" class="form-grid card">
+              <label class="full">Focus — this plan in a line
+                <input type="text" name="focus" value="<%= idp.focus || "" %>" placeholder="e.g. Building confidence leading room programming">
+              </label>
+              <label class="full">Strengths — what they already do well
+                <textarea name="strengths" rows="3" placeholder="e.g. Warm with families; strong routines; reliable and calm under pressure"><%= idp.strengths || "" %></textarea>
+              </label>
+              <label class="full">Aspirations — where they want to head (this cycle and longer term)
+                <textarea name="aspirations" rows="3" placeholder="e.g. Grow into a Room Leader role over the next 1–2 years"><%= idp.aspirations || "" %></textarea>
+              </label>
+              <button type="submit" class="full">Save development focus</button>
+            </form>
+          <% } else { %>
+            <div class="card">
+              <div class="g-lbl">Focus</div><div style="margin-bottom:10px"><%= idp.focus || "—" %></div>
+              <div class="g-lbl">Strengths</div><div style="margin-bottom:10px;white-space:pre-wrap"><%= idp.strengths || "—" %></div>
+              <div class="g-lbl">Aspirations</div><div style="white-space:pre-wrap"><%= idp.aspirations || "—" %></div>
+            </div>
+          <% } %>
+
+          <div class="card">
+            <div class="row-between" style="margin-bottom:8px">
+              <h3 style="margin:0;font-size:16px">Areas for development</h3>
+              <span class="muted" style="font-size:0.85rem"><%= devAreas.length %> area<%= devAreas.length === 1 ? "" : "s" %></span>
+            </div>
+            <p class="muted" style="margin:0 0 12px;font-size:13px">The 2–4 growth areas this plan focuses on. Each goal in the Goals tab is set against one of these.</p>
+            <% if (devAreas.length) { %>
+              <ul class="area-list">
+                <% devAreas.forEach(function(a) { %>
+                  <% var ac = goals.filter(function(g){ return g.dev_area_id === a.id; }).length; %>
+                  <li class="area-item">
+                    <span><%= a.title %> <span class="muted" style="font-size:12px">· <%= ac %> goal<%= ac === 1 ? "" : "s" %></span></span>
+                    <% if (!locked) { %>
+                      <form method="POST" action="/development/areas/<%= a.id %>/delete" class="inline"><button type="submit" class="link-btn danger" title="Remove area (its goals are kept)">Remove</button></form>
+                    <% } %>
+                  </li>
+                <% }) %>
+              </ul>
+            <% } else { %>
+              <p class="muted" style="margin:0 0 12px"><%= locked ? "No development areas were recorded on this plan." : "No areas yet — add the first below." %></p>
+            <% } %>
+            <% if (!locked) { %>
+              <form method="POST" action="/development/idp/<%= idp.id %>/areas" class="area-add">
+                <input type="text" name="title" required placeholder="e.g. Leading room programming" aria-label="New area for development">
+                <button type="submit" class="button btn-outline">Add area</button>
+              </form>
+            <% } %>
+          </div>
+        </section>
 
         <!-- GOALS -->
         <section data-tab-panel="goals">
@@ -134,6 +191,20 @@
               <details class="add-goal"><summary class="button">+ Add goal</summary>
                 <form method="POST" action="/development/idp/<%= idp.id %>/goals" class="form-grid card" style="margin-top:10px">
                   <label class="full">Title<input type="text" name="title" required placeholder="e.g. Lead weekly room programming"></label>
+                  <label>Area for development this goal addresses
+                    <select name="dev_area_id">
+                      <option value="">— not linked —</option>
+                      <% devAreas.forEach(function(a) { %><option value="<%= a.id %>"><%= a.title %></option><% }) %>
+                    </select>
+                  </label>
+                  <label>Horizon
+                    <select name="horizon">
+                      <option value="">— unset —</option>
+                      <option value="short">This cycle</option>
+                      <option value="developmental">Longer term</option>
+                    </select>
+                  </label>
+                  <% if (devAreas.length === 0) { %><p class="muted full" style="margin:0;font-size:12.5px">Tip: name your areas for development in the <strong>Focus</strong> tab first, then link each goal to one.</p><% } %>
                   <label class="full">Specific — what exactly?<textarea name="specific" rows="2"></textarea></label>
                   <label class="full">Measurable — how will we know it's done?<textarea name="measurable" rows="2"></textarea></label>
                   <label class="full">Achievable — what support makes it doable?<textarea name="achievable" rows="2"></textarea></label>
@@ -151,13 +222,26 @@
             </div>
           <% } else { %><h2 style="margin:0 0 8px;font-size:18px">SMART goals</h2><% } %>
 
-          <div class="card" style="padding:2px 16px">
-            <% goals.forEach(function(g) { %>
+          <% if (goals.length === 0) { %>
+            <div class="card"><p class="muted" style="padding:12px 0;margin:0"><%= locked ? "No goals were recorded on this plan." : "No goals yet — add the first one above. Link it to an area for development so it reads as how you'll act on that area." %></p></div>
+          <% } %>
+          <% goalGroups.forEach(function(group) { %>
+            <div class="card goal-group" style="padding:2px 16px">
+              <div class="group-head">
+                <% if (group.area) { %>
+                  <span class="area-pill">Area</span> <strong><%= group.area.title %></strong>
+                <% } else { %>
+                  <strong>Other goals</strong> <span class="muted" style="font-size:12px">— not linked to an area</span>
+                <% } %>
+                <span class="muted" style="font-size:12px"><%= group.goals.length %> goal<%= group.goals.length === 1 ? "" : "s" %></span>
+              </div>
+              <% group.goals.forEach(function(g) { %>
               <div class="goal-row">
                 <div class="goal-head">
                   <div style="flex:1">
                     <div class="goal-title"><%= g.title %></div>
                     <div class="goal-meta">
+                      <% if (g.horizon) { %><span class="badge horizon-tag"><%= horizonLabel[g.horizon] %></span><% } %>
                       <% if (g.nqs_element_code) { %><span class="badge nqs-tag" title="<%= nqs.elementLabel(g.nqs_element_code) %>"><%= g.nqs_element_code %></span><% } %>
                       <% if (g.target_date) { %>Target <%= g.target_date %><% } %>
                       <% if (g.progress_notes) { %><span class="muted">&middot; <%= g.progress_notes %></span><% } %>
@@ -171,6 +255,19 @@
                     <summary>View / edit</summary>
                     <form method="POST" action="/development/goals/<%= g.id %>" class="form-grid">
                       <label class="full">Title<input type="text" name="title" required value="<%= g.title %>"></label>
+                      <label>Area for development
+                        <select name="dev_area_id">
+                          <option value="">— not linked —</option>
+                          <% devAreas.forEach(function(a) { %><option value="<%= a.id %>" <%= g.dev_area_id === a.id ? "selected" : "" %>><%= a.title %></option><% }) %>
+                        </select>
+                      </label>
+                      <label>Horizon
+                        <select name="horizon">
+                          <option value="" <%= !g.horizon ? "selected" : "" %>>— unset —</option>
+                          <option value="short" <%= g.horizon === "short" ? "selected" : "" %>>This cycle</option>
+                          <option value="developmental" <%= g.horizon === "developmental" ? "selected" : "" %>>Longer term</option>
+                        </select>
+                      </label>
                       <label class="full">Specific — what exactly?<textarea name="specific" rows="2"><%= g.specific || "" %></textarea></label>
                       <label class="full">Measurable — how will we know it's done?<textarea name="measurable" rows="2"><%= g.measurable || "" %></textarea></label>
                       <label class="full">Achievable — what support makes it doable?<textarea name="achievable" rows="2"><%= g.achievable || "" %></textarea></label>
@@ -194,9 +291,9 @@
                   </details>
                 <% } %>
               </div>
-            <% }) %>
-            <% if (goals.length === 0) { %><p class="muted" style="padding:12px 0"><%= locked ? "No goals were recorded on this plan." : "No goals yet — add the first one above." %></p><% } %>
-          </div>
+              <% }) %>
+            </div>
+          <% }) %>
         </section>
 
         <!-- PROGRESS LOG -->
