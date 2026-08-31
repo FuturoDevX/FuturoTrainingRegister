@@ -26,7 +26,7 @@
               <td><%= s.position_title || "—" %></td>
               <td><%= s.sessions_attended %></td>
               <td><%= s.total_hours %></td>
-              <td class="sticky-col"><a href="/report/person/<%= s.id %>" class="icon-link" title="Individual report" aria-label="Individual report">📄</a></td>
+              <td class="sticky-col"><a href="/report/person/<%= s.id %>" class="row-action">View profile</a></td>
             </tr>
           <% }) %>
           <% if (rows.length === 0) { %>

@@ -52,9 +52,9 @@
 
       <details <%= rooms.length === 0 ? "open" : "" %>>
         <summary>+ New room</summary>
-        <form method="POST" action="/development/rooms<%= isAdmin ? '?centre=' + workingCentreId : '' %>" class="form-grid">
-          <label>Room name<input type="text" name="name" required placeholder="e.g. Room 3, Toddlers, Nursery"></label>
-          <button type="submit">Create room</button>
+        <form method="POST" action="/development/rooms<%= isAdmin ? '?centre=' + workingCentreId : '' %>" class="area-add" style="margin-top:10px">
+          <input type="text" name="name" required placeholder="e.g. Room 3, Toddlers, Nursery" aria-label="Room name">
+          <button type="submit" class="button btn-outline">Create room</button>
         </form>
       </details>
     </section>

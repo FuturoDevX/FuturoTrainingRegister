@@ -9,14 +9,63 @@
   <%- include("partials/header", { user }) %>
   <main class="container">
     <h1>Organisation — Home</h1>
-    <p class="muted">Development plans and roster health across all centres.</p>
+    <p class="muted">Training and development across all centres — here's what needs attention.</p>
+
+    <div class="attn-grid">
+      <a class="attn <%= attention.overdue ? 'alert' : '' %>" href="/report/idp">
+        <svg class="attn-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.3 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.3a2 2 0 0 0-3.4 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <div class="attn-num"><%= attention.overdue %></div>
+        <div class="attn-label">IDP reviews overdue</div>
+      </a>
+      <a class="attn <%= attention.noPlan ? 'warn' : '' %>" href="/report/idp">
+        <svg class="attn-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+        <div class="attn-num"><%= attention.noPlan %></div>
+        <div class="attn-label">Staff with no plan yet</div>
+      </a>
+      <% if (attention.draft) { %>
+      <a class="attn warn" href="/report/idp">
+        <svg class="attn-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+        <div class="attn-num"><%= attention.draft %></div>
+        <div class="attn-label">Draft plan<%= attention.draft === 1 ? "" : "s" %> — activate to count</div>
+      </a>
+      <% } %>
+      <a class="attn" href="/training">
+        <svg class="attn-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        <div class="attn-num"><%= attention.awaitingAttendance %></div>
+        <div class="attn-label">Sessions awaiting attendance</div>
+      </a>
+    </div>
+
+    <section class="card">
+      <h2>Across all centres</h2>
+      <div class="stat-row">
+        <div class="stat"><div class="stat-num"><%= org.coverage %>%</div><div class="stat-label">have an active IDP</div></div>
+        <div class="stat"><div class="stat-num"><%= org.draft %></div><div class="stat-label">in draft</div></div>
+        <div class="stat"><div class="stat-num"><%= org.total %></div><div class="stat-label">permanent staff</div></div>
+        <div class="stat"><div class="stat-num"><%= training.sessions %></div><div class="stat-label">training sessions</div></div>
+        <div class="stat"><div class="stat-num"><%= training.hours %></div><div class="stat-label">training hours logged</div></div>
+      </div>
+    </section>
 
     <div class="home-top">
       <section class="card">
-        <h2>IDP coverage</h2>
-        <div class="cov-big"><%= org.coverage %>%</div>
-        <div class="muted"><%= org.total %> permanent staff · <%= org.active %> with an active plan</div>
-        <div class="coverage" style="margin-top: 1rem;"><div class="coverage-bar" style="width: <%= org.coverage %>%"></div></div>
+        <div class="row-between" style="align-items:baseline">
+          <h2 style="margin:0">Recent training</h2>
+          <a href="/training">All sessions →</a>
+        </div>
+        <% if (training.recent.length === 0) { %>
+          <p class="muted" style="margin-top:12px">No training sessions recorded yet.</p>
+        <% } else { %>
+          <ul class="mini-list">
+            <% training.recent.forEach(function(t) { %>
+              <li>
+                <a href="/training/<%= t.id %>/attendance"><%= t.title %></a>
+                <span class="mini-meta"><%= t.session_date %> · <%= t.location_name || "—" %> · <%= t.hours %>h</span>
+                <% if (t.marked) { %><span class="badge status-completed"><%= t.attended_count %> attended</span><% } else { %><span class="badge overdue">not marked</span><% } %>
+              </li>
+            <% }) %>
+          </ul>
+        <% } %>
       </section>
 
       <section class="card">
@@ -41,10 +90,10 @@
     </div>
 
     <section class="card">
-      <h2>By centre</h2>
+      <h2>Development by centre</h2>
       <div class="table-scroll">
         <table>
-          <thead><tr><th>Centre</th><th>IDP coverage</th><th>Active</th><th>No IDP</th><th>Staff</th></tr></thead>
+          <thead><tr><th>Centre</th><th>IDP coverage</th><th>Active</th><th>Draft</th><th>No plan</th><th>Staff</th></tr></thead>
           <tbody>
             <% centres.forEach(function(c) { %>
               <tr>
@@ -53,11 +102,12 @@
                   <div class="coverage"><div class="coverage-bar <%= c.pct < 30 ? 'cov-low' : '' %>" style="width: <%= c.pct %>%"></div><span class="coverage-pct"><%= c.pct %>%</span></div>
                 </td>
                 <td><%= c.active %></td>
+                <td><%= c.draft %></td>
                 <td><%= c.none_count %></td>
                 <td><%= c.total %></td>
               </tr>
             <% }) %>
-            <% if (centres.length === 0) { %><tr><td colspan="5" class="muted">No staff yet — run a sync.</td></tr><% } %>
+            <% if (centres.length === 0) { %><tr><td colspan="6" class="muted">No staff yet — run a sync.</td></tr><% } %>
           </tbody>
         </table>
       </div>

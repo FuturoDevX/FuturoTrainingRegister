@@ -23,6 +23,17 @@ function attachNqsLinks(sessions) {
   return sessions;
 }
 
+// Attaches whether attendance has been marked yet, and how many attended, to each session —
+// so the list can show which sessions still need doing at a glance (matching the home card).
+function attachAttendance(sessions) {
+  const stmt = db.prepare("SELECT COUNT(*) AS marked, COALESCE(SUM(attended), 0) AS attended FROM training_attendance WHERE session_id = ?");
+  for (const s of sessions) {
+    const r = stmt.get(s.id);
+    s.att_marked = r.marked > 0;
+    s.att_count = r.attended;
+  }
+}
+
 function saveNqsLinks(sessionId, submitted) {
   const codes = [...new Set([].concat(submitted || []))].filter(nqs.isValidElementCode);
   if (codes.length === 0) return;
@@ -53,6 +64,7 @@ router.get("/training", requireLogin, (req, res) => {
       `).all(locationId)
     : db.prepare("SELECT t.*, l.name AS location_name FROM training_sessions t LEFT JOIN locations l ON l.id = t.location_id ORDER BY t.session_date DESC").all();
   attachNqsLinks(sessions);
+  attachAttendance(sessions);
   for (const s of sessions) s.canManage = canManageSession(req, s);
 
   const locations = db.prepare("SELECT * FROM locations ORDER BY name").all();

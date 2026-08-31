@@ -44,7 +44,7 @@
     <form method="POST" action="/training/<%= session.id %>/attendance">
       <% if (isAdmin) { %><input type="hidden" name="location_id" value="<%= viewLocation.id %>"><% } %>
       <table>
-        <thead><tr><th>Attended</th><th>Name</th><th>Position</th></tr></thead>
+        <thead><tr><th class="attend-col"><% if (staff.length) { %><label class="markall"><input type="checkbox" id="attend-all"> all</label><% } else { %>Attended<% } %></th><th>Name</th><th>Position</th></tr></thead>
         <tbody>
           <% staff.forEach(function(s) { %>
             <tr>
@@ -61,5 +61,17 @@
       <button type="submit">Save attendance</button>
     </form>
   </main>
+  <script>
+    // Header "all" checkbox toggles every row; it also reflects the rows' combined state.
+    (function () {
+      var all = document.getElementById("attend-all");
+      if (!all) return;
+      var boxes = Array.prototype.slice.call(document.querySelectorAll('input[name="attended"]'));
+      function sync() { all.checked = boxes.length > 0 && boxes.every(function (b) { return b.checked; }); }
+      all.addEventListener("change", function () { boxes.forEach(function (b) { b.checked = all.checked; }); });
+      boxes.forEach(function (b) { b.addEventListener("change", sync); });
+      sync();
+    })();
+  </script>
 </body>
 </html>

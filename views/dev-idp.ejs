@@ -15,6 +15,10 @@
       var achievedCount = goals.filter(function (g) { return g.status === "achieved"; }).length;
       var overdue = idp && idp.status === "active" && idp.review_date && idp.review_date < today;
       var shortRole = { "Room Leader": "RL", "Educational Leader": "EL", "Assistant Centre Manager": "ACM", "Centre Manager": "CM", "Operations Manager": "OM", "General Manager": "GM", "Quality & Compliance": "Q&C" };
+      // A draft plan is "ready" once it has a headline focus and at least one goal — that's
+      // when we nudge the CM to activate it (activation is what makes it count as coverage).
+      var isDraft = idp && idp.status === "draft";
+      var readyToActivate = isDraft && idp.focus && goals.length > 0;
     %>
 
     <p style="margin-bottom:10px"><a href="/development/plans">&larr; Back to plans</a></p>
@@ -52,6 +56,19 @@
         </div>
       <% } %>
 
+      <% if (isDraft) { %>
+        <div class="activate-banner <%= readyToActivate ? 'ready' : '' %>">
+          <div class="activate-copy">
+            <strong>This plan is a draft.</strong>
+            It won't count toward IDP coverage or reporting until you activate it.
+            <% if (readyToActivate) { %><span class="activate-ready">Looks ready — a focus and <%= goals.length %> goal<%= goals.length === 1 ? "" : "s" %> are in place.</span><% } %>
+          </div>
+          <form method="POST" action="/development/idp/<%= idp.id %>/activate" class="inline">
+            <button type="submit" class="button">Activate plan</button>
+          </form>
+        </div>
+      <% } %>
+
       <!-- At a glance: the whole plan in one strip -->
       <section class="card glance-card">
         <div class="row-between" style="align-items:flex-start">
@@ -69,13 +86,6 @@
               </summary>
               <p class="muted" style="font-size:0.8rem;margin:12px 0 0">Plan settings. The development focus, strengths and areas live in the <strong>Focus</strong> tab below.</p>
               <form method="POST" action="/development/idp/<%= idp.id %>" class="form-grid" style="margin-top:12px">
-                <label>Status
-                  <select name="status">
-                    <% ["draft","active"].forEach(function(st) { %>
-                      <option value="<%= st %>" <%= idp.status === st ? "selected" : "" %>><%= st.charAt(0).toUpperCase() + st.slice(1) %></option>
-                    <% }) %>
-                  </select>
-                </label>
                 <label>Next review date<input type="date" name="review_date" value="<%= idp.review_date || "" %>"></label>
                 <label>Supporting leaders
                   <select name="supporters_mode">
@@ -97,6 +107,11 @@
               </form>
               <hr class="soft-rule">
               <p class="muted" style="font-size:0.8rem;margin:0 0 8px">Completing locks the plan into history — you can reopen it or start the next cycle afterwards.</p>
+              <% if (idp.status === "active") { %>
+                <form method="POST" action="/development/idp/<%= idp.id %>/unpublish" class="inline" style="margin-right:8px">
+                  <button type="submit" class="button btn-outline btn-grey">Move back to draft</button>
+                </form>
+              <% } %>
               <form method="POST" action="/development/idp/<%= idp.id %>/complete" class="inline">
                 <button type="submit" class="button btn-outline">Mark plan complete</button>
               </form>

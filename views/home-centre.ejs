@@ -20,8 +20,15 @@
       <a class="attn <%= attention.noPlan ? 'warn' : '' %>" href="/development/plans">
         <svg class="attn-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
         <div class="attn-num"><%= attention.noPlan %></div>
-        <div class="attn-label">Staff without an active IDP</div>
+        <div class="attn-label">Staff with no plan yet</div>
       </a>
+      <% if (attention.draft) { %>
+      <a class="attn warn" href="/development/plans">
+        <svg class="attn-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+        <div class="attn-num"><%= attention.draft %></div>
+        <div class="attn-label">Draft plan<%= attention.draft === 1 ? "" : "s" %> — activate to count</div>
+      </a>
+      <% } %>
       <a class="attn" href="/training">
         <svg class="attn-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
         <div class="attn-num"><%= attention.awaitingAttendance %></div>
@@ -33,6 +40,7 @@
       <h2>Your centre at a glance</h2>
       <div class="stat-row">
         <div class="stat"><div class="stat-num"><%= stats.coverage %>%</div><div class="stat-label">have an active IDP</div></div>
+        <div class="stat"><div class="stat-num"><%= stats.draft %></div><div class="stat-label">in draft</div></div>
         <div class="stat"><div class="stat-num"><%= stats.total %></div><div class="stat-label">active staff</div></div>
         <div class="stat"><div class="stat-num"><%= stats.rooms %></div><div class="stat-label">rooms</div></div>
         <div class="stat"><div class="stat-num"><%= stats.hours %></div><div class="stat-label">training hours logged</div></div>

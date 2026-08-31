@@ -33,8 +33,8 @@
           <% } %>
         </div>
 
-        <form method="POST" action="/development/people/save-all<%= isAdmin ? '?centre=' + workingCentreId : '' %>">
-          <div class="saveall-bar">
+        <form method="POST" action="/development/people/save-all<%= isAdmin ? '?centre=' + workingCentreId : '' %>" id="people-form">
+          <div class="saveall-bar saveall-sticky">
             <span class="muted" style="font-size:0.85rem">Changes aren't stored until you save.</span>
             <button type="submit" class="button">Save all changes</button>
           </div>
@@ -78,5 +78,16 @@
     </section>
   </main>
   <script src="/filter.js"></script>
+  <script>
+    // Warn before leaving with unsaved role/room changes (they only persist on "Save all").
+    (function () {
+      var f = document.getElementById("people-form");
+      if (!f) return;
+      var dirty = false;
+      f.addEventListener("change", function () { dirty = true; });
+      f.addEventListener("submit", function () { dirty = false; });
+      window.addEventListener("beforeunload", function (e) { if (dirty) { e.preventDefault(); e.returnValue = ""; } });
+    })();
+  </script>
 </body>
 </html>

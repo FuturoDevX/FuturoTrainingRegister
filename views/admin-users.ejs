@@ -17,34 +17,37 @@
         <table>
           <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Centre</th><th>Active</th><th class="sticky-col">Actions</th></tr></thead>
           <tbody>
+            <% var roleLabels = { admin: "Admin", centre_manager: "Centre Manager" }; %>
             <% users.forEach(function(u) { %>
               <tr>
                 <td><%= u.full_name %></td>
                 <td><%= u.email %></td>
-                <td><%= u.role %></td>
+                <td><%= roleLabels[u.role] || u.role %></td>
                 <td><%= u.location_name || "—" %></td>
                 <td><%= u.active ? "Yes" : "No" %></td>
                 <td class="actions-cell sticky-col">
-                  <details class="inline-reveal">
-                    <summary class="icon-link" title="Set new password" aria-label="Set new password">🔑</summary>
-                    <form method="POST" action="/admin/users/<%= u.id %>/password" class="password-reset-form">
-                      <input type="text" name="password" placeholder="New password" minlength="8" required>
-                      <button type="submit" class="icon-link" title="Save" aria-label="Save">✓</button>
+                  <div class="row-actions">
+                    <details class="inline-reveal">
+                      <summary class="row-action">Password</summary>
+                      <form method="POST" action="/admin/users/<%= u.id %>/password" class="password-reset-form">
+                        <input type="text" name="password" placeholder="New password" minlength="8" required>
+                        <button type="submit" class="button btn-sm">Save</button>
+                      </form>
+                    </details>
+                    <a href="/admin/users/<%= u.id %>/edit" class="row-action">Edit</a>
+                    <form method="POST" action="/admin/users/<%= u.id %>/toggle" class="inline">
+                      <% if (u.active) { %>
+                        <button type="submit" class="row-action danger">Deactivate</button>
+                      <% } else { %>
+                        <button type="submit" class="row-action">Reactivate</button>
+                      <% } %>
                     </form>
-                  </details>
-                  <form method="POST" action="/admin/users/<%= u.id %>/toggle" class="inline">
-                    <% if (u.active) { %>
-                      <button type="submit" class="icon-link danger" title="Deactivate" aria-label="Deactivate">🚫</button>
-                    <% } else { %>
-                      <button type="submit" class="icon-link" title="Reactivate" aria-label="Reactivate">✅</button>
+                    <% if (u.id !== user.id) { %>
+                      <form method="POST" action="/admin/users/<%= u.id %>/delete" class="inline" onsubmit="return confirm('Permanently delete this login? This cannot be undone.');">
+                        <button type="submit" class="row-action danger">Delete</button>
+                      </form>
                     <% } %>
-                  </form>
-                  <a href="/admin/users/<%= u.id %>/edit" class="icon-link" title="Edit" aria-label="Edit">✎</a>
-                  <% if (u.id !== user.id) { %>
-                    <form method="POST" action="/admin/users/<%= u.id %>/delete" class="inline" onsubmit="return confirm('Permanently delete this login? This cannot be undone.');">
-                      <button type="submit" class="icon-link danger" title="Delete" aria-label="Delete">🗑</button>
-                    </form>
-                  <% } %>
+                  </div>
                 </td>
               </tr>
             <% }) %>

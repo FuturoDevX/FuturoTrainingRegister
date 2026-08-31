@@ -62,7 +62,8 @@ function centreContext(req, activeTab) {
   };
 }
 
-router.get("/development", requireLogin, (req, res) => res.redirect("/development/rooms"));
+// Land on Plans — the day-to-day surface — rather than Rooms (often an empty setup screen).
+router.get("/development", requireLogin, (req, res) => res.redirect("/development/plans"));
 
 // ---- Rooms ----------------------------------------------------------------
 router.get("/development/rooms", requireLogin, (req, res) => {
@@ -326,13 +327,12 @@ router.post("/development/idp/:id", requireLogin, (req, res) => {
     return res.redirect(`/development/idp/${person.id}`);
   }
 
-  // Completion is its own action (/complete) — the dropdown only toggles draft/active.
-  // The reflection (focus/strengths/aspirations) has its own route so its form and this
-  // settings form never overwrite each other's fields with blanks.
-  const status = ["draft", "active"].includes(req.body.status) ? req.body.status : idp.status;
+  // Status is its own set of actions now (activate / unpublish / complete / reopen), not a
+  // dropdown here. The reflection (focus/strengths/aspirations) also has its own route, so
+  // this settings form and that one never overwrite each other's fields with blanks.
   const supportersMode = req.body.supporters_mode === "manual" ? "manual" : "auto";
-  db.prepare("UPDATE idps SET status = ?, review_date = ?, supporters_mode = ?, updated_at = datetime('now') WHERE id = ?")
-    .run(status, req.body.review_date || null, supportersMode, idp.id);
+  db.prepare("UPDATE idps SET review_date = ?, supporters_mode = ?, updated_at = datetime('now') WHERE id = ?")
+    .run(req.body.review_date || null, supportersMode, idp.id);
 
   // Replace manual supporters only when in manual mode; leaving auto clears none but
   // simply stops consulting the table.
@@ -347,6 +347,36 @@ router.post("/development/idp/:id", requireLogin, (req, res) => {
   }
   logAction(req, "idp.update", `Updated ${person.full_name}'s IDP (status: ${status})`);
   setFlash(req, "success", "IDP updated.");
+  res.redirect(`/development/idp/${person.id}`);
+});
+
+// Activate a draft plan — a first-class action (not just the Edit-plan status dropdown), so
+// the step that makes a plan count toward coverage is obvious rather than buried. Reporting
+// counts only active plans, so a plan left in draft is invisible until this runs.
+router.post("/development/idp/:id/activate", requireLogin, (req, res) => {
+  const idp = db.prepare("SELECT * FROM idps WHERE id = ?").get(req.params.id);
+  if (!idp) return res.status(404).render("error", { message: "IDP not found." });
+  const person = db.prepare("SELECT * FROM staff WHERE id = ?").get(idp.staff_id);
+  if (!canManagePerson(req, person)) return res.status(403).render("error", { message: "You can only manage your own centre's staff." });
+  if (idp.status !== "draft") return res.redirect(`/development/idp/${person.id}`);
+
+  db.prepare("UPDATE idps SET status = 'active', updated_at = datetime('now') WHERE id = ?").run(idp.id);
+  logAction(req, "idp.activate", `Activated ${person.full_name}'s IDP`);
+  setFlash(req, "success", "Plan activated — it now counts toward IDP coverage.");
+  res.redirect(`/development/idp/${person.id}`);
+});
+
+// Move an active plan back to draft (rarely needed — e.g. activated by mistake).
+router.post("/development/idp/:id/unpublish", requireLogin, (req, res) => {
+  const idp = db.prepare("SELECT * FROM idps WHERE id = ?").get(req.params.id);
+  if (!idp) return res.status(404).render("error", { message: "IDP not found." });
+  const person = db.prepare("SELECT * FROM staff WHERE id = ?").get(idp.staff_id);
+  if (!canManagePerson(req, person)) return res.status(403).render("error", { message: "You can only manage your own centre's staff." });
+  if (idp.status !== "active") return res.redirect(`/development/idp/${person.id}`);
+
+  db.prepare("UPDATE idps SET status = 'draft', updated_at = datetime('now') WHERE id = ?").run(idp.id);
+  logAction(req, "idp.unpublish", `Moved ${person.full_name}'s IDP back to draft`);
+  setFlash(req, "success", "Plan moved back to draft.");
   res.redirect(`/development/idp/${person.id}`);
 });
 
